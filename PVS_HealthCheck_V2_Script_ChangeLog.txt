@@ -6,4 +6,73 @@
 #released to the community on 
 #V2.00 is based on 1.24
 #
-
+#Version 2.00
+#	Added the following functions to support Word/PDF and HTML output and new parameters:
+#		AddHTMLTable
+#		AddWordTable
+#		CheckWordPrereq
+#		FindWordDocumentEnd
+#		FormatHTMLTable
+#		GetCulture
+#		Get-LocalRegistryValue
+#		Get-RegistryValue
+#		OutputauthGroups
+#		OutputNotice
+#		OutputReportFooter
+#		OutputWarning
+#		ProcessDocumentOutput
+#		SaveandCloseDocumentandShutdownWord
+#		SaveandCloseHTMLDocument
+#		Set-DocumentProperty
+#		SetupWord
+#		SetWordCellFormat
+#		SetWordHashTable
+#		SetWordTableAlternateRowColor
+#		Test-RegistryValue
+#		UpdateDocumentProperties
+#		ValidateCompanyName
+#		ValidateCoverPage
+#		validObject
+#		validStateProp
+#		WriteHTMLLine
+#		WriteWordLine
+#	Added the following parameters:
+#		AddDateTIme
+#		CompanyAddress
+#		CompanyEmail
+#		CompanyFax
+#		CompanyName
+#		CompanyPhone
+#		CoverPage
+#		HTML
+#		MSWord
+#		PDF
+#		ReportFooter
+#		Text
+#		UserName
+#	Any Function in this script not listed anywhere else in this changelog was updated to support Word/PDF and HTML output
+#	Changed all file names by adding a V2 somewhere in the name
+#	Changed the date format for the transcript and error log files from yyyy-MM-dd_HHmm format to the FileDateTime format
+#		The format is yyyyMMddTHHmmssffff (case-sensitive, using a 4-digit year, 2-digit month, 2-digit day, 
+#		the letter T as a time separator, 2-digit hour, 2-digit minute, 2-digit second, and 4-digit millisecond)
+#		For example: 20221225T0840107271
+#	Dropped support for PVS 5. The V1.24 script still supports PVS 5.x
+#	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
+#	Updated the following functions to the latest versions:
+#		AbortScript
+#		GetComputerWMIInfo
+#		line
+#		OutputComputerItem
+#		OutputDriveItem
+#		OutputNicItem
+#		OutputProcessorItem
+#		ProcessScriptEnd
+#		SaveandCloseTextDocument
+#		SendEmail
+#		SetFilenames
+#		SetupText
+#		ShowScriptOptions
+#	Updated the help text
+#	Updated the ReadMe file
+#	Went to Set-StrictMode -Version Latest, from Version 2 and cleaned up all related errors
+#	You can select multiple output formats
