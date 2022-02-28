@@ -401,7 +401,7 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.01
+	VERSION: 2 0.02
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
 	LASTEDIT: February 28, 2022
 #>
@@ -1156,1234 +1156,6 @@ $Script:Title is attached.
 			}
 		}
 	}
-}
-#endregion
-
-#region code for hardware data
-Function GetComputerWMIInfo
-{
-	Param([string]$RemoteComputerName)
-	
-	# original work by Kees Baggerman, 
-	# Senior Technical Consultant @ Inter Access
-	# k.baggerman@myvirtualvision.com
-	# @kbaggerman on Twitter
-	# http://blog.myvirtualvision.com
-	# modified 1-May-2014 to work in trusted AD Forests and using different domain admin credentials	
-	# modified 17-Aug-2016 to fix a few issues with Text and HTML output
-	# modified 29-Apr-2018 to change from Arrays to New-Object System.Collections.ArrayList
-
-	#Get Computer info
-	Write-Verbose "$(Get-Date -Format G): `t`tProcessing WMI Computer information"
-	Write-Verbose "$(Get-Date -Format G): `t`t`tHardware information"
-	If($MSWord -or $PDF)
-	{
-		WriteWordLine 3 0 "Computer Information: $($RemoteComputerName)"
-		WriteWordLine 4 0 "General Computer"
-	}
-	If($Text)
-	{
-		Line 0 "Computer Information: $($RemoteComputerName)"
-		Line 1 "General Computer"
-	}
-	If($HTML)
-	{
-		WriteHTMLLine 3 0 "Computer Information: $($RemoteComputerName)"
-		WriteHTMLLine 4 0 "General Computer"
-	}
-	
-	Try
-	{
-		$Results = Get-WmiObject -computername $RemoteComputerName win32_computersystem
-	}
-	
-	Catch
-	{
-		$Results = $Null
-	}
-	
-	If($? -and $Null -ne $Results)
-	{
-		$ComputerItems = $Results | Select-Object Manufacturer, Model, Domain, `
-		@{N="TotalPhysicalRam"; E={[math]::round(($_.TotalPhysicalMemory / 1GB),0)}}, `
-		NumberOfProcessors, NumberOfLogicalProcessors
-		$Results = $Null
-		[string]$ComputerOS = (Get-WmiObject -class Win32_OperatingSystem -computername $RemoteComputerName -EA 0).Caption
-
-		ForEach($Item in $ComputerItems)
-		{
-			OutputComputerItem $Item $ComputerOS $RemoteComputerName
-		}
-	}
-	ElseIf(!$?)
-	{
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
-			Line 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 2 "need to rerun the script with Domain Admin credentials from the trusted Forest."
-			Line 2 ""
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)" -option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
-		}
-	}
-	Else
-	{
-		Write-Verbose "$(Get-Date -Format G): No results Returned for Computer information"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "No results Returned for Computer information" "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "No results Returned for Computer information"
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "No results Returned for Computer information" -Option $htmlBold
-		}
-	}
-	
-	#Get Disk info
-	Write-Verbose "$(Get-Date -Format G): `t`t`tDrive information"
-
-	If($MSWord -or $PDF)
-	{
-		WriteWordLine 4 0 "Drive(s)"
-	}
-	If($Text)
-	{
-		Line 1 "Drive(s)"
-	}
-	If($HTML)
-	{
-		WriteHTMLLine 4 0 "Drive(s)"
-	}
-
-	Try
-	{
-		$Results = Get-WmiObject -computername $RemoteComputerName Win32_LogicalDisk
-	}
-	
-	Catch
-	{
-		$Results = $Null
-	}
-
-	If($? -and $Null -ne $Results)
-	{
-		$drives = $Results | Select-Object caption, @{N="drivesize"; E={[math]::round(($_.size / 1GB),0)}}, 
-		filesystem, @{N="drivefreespace"; E={[math]::round(($_.freespace / 1GB),0)}}, 
-		volumename, drivetype, volumedirty, volumeserialnumber
-		$Results = $Null
-		ForEach($drive in $drives)
-		{
-			If($drive.caption -ne "A:" -and $drive.caption -ne "B:")
-			{
-				OutputDriveItem $drive
-			}
-		}
-	}
-	ElseIf(!$?)
-	{
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
-			Line 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 2 "need to rerun the script with Domain Admin credentials from the trusted Forest."
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)" -Option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
-		}
-	}
-	Else
-	{
-		Write-Verbose "$(Get-Date -Format G): No results Returned for Drive information"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "No results Returned for Drive information" "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "No results Returned for Drive information"
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "No results Returned for Drive information" -Option $htmlBold
-		}
-	}
-	
-	#Get CPU's and stepping
-	Write-Verbose "$(Get-Date -Format G): `t`t`tProcessor information"
-
-	If($MSWord -or $PDF)
-	{
-		WriteWordLine 4 0 "Processor(s)"
-	}
-	If($Text)
-	{
-		Line 1 "Processor(s)"
-	}
-	If($HTML)
-	{
-		WriteHTMLLine 4 0 "Processor(s)"
-	}
-
-	Try
-	{
-		$Results = Get-WmiObject -computername $RemoteComputerName win32_Processor
-	}
-	
-	Catch
-	{
-		$Results = $Null
-	}
-
-	If($? -and $Null -ne $Results)
-	{
-		$Processors = $Results | Select-Object availability, name, description, maxclockspeed, 
-		l2cachesize, l3cachesize, numberofcores, numberoflogicalprocessors
-		$Results = $Null
-		ForEach($processor in $processors)
-		{
-			OutputProcessorItem $processor
-		}
-	}
-	ElseIf(!$?)
-	{
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
-			Line 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 2 "need to rerun the script with Domain Admin credentials from the trusted Forest."
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)" -Option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
-		}
-	}
-	Else
-	{
-		Write-Verbose "$(Get-Date -Format G): No results Returned for Processor information"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "No results Returned for Processor information" "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "No results Returned for Processor information"
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "No results Returned for Processor information" -Option $htmlBold
-		}
-	}
-
-	#Get Nics
-	Write-Verbose "$(Get-Date -Format G): `t`t`tNIC information"
-
-	If($MSWord -or $PDF)
-	{
-		WriteWordLine 4 0 "Network Interface(s)"
-	}
-	If($Text)
-	{
-		Line 1 "Network Interface(s)"
-	}
-	If($HTML)
-	{
-		WriteHTMLLine 4 0 "Network Interface(s)"
-	}
-
-	[bool]$GotNics = $True
-	
-	Try
-	{
-		$Results = Get-WmiObject -computername $RemoteComputerName win32_networkadapterconfiguration
-	}
-	
-	Catch
-	{
-		$Results = $Null
-	}
-
-	If($? -and $Null -ne $Results)
-	{
-		$Nics = $Results | Where-Object {$Null -ne $_.ipaddress}
-		$Results = $Null
-
-		If($Null -eq $Nics) 
-		{ 
-			$GotNics = $False 
-		} 
-		Else 
-		{ 
-			$GotNics = !($Nics.__PROPERTY_COUNT -eq 0) 
-		} 
-	
-		If($GotNics)
-		{
-			ForEach($nic in $nics)
-			{
-				Try
-				{
-					$ThisNic = Get-WmiObject -computername $RemoteComputerName win32_networkadapter | Where-Object {$_.index -eq $nic.index}
-				}
-				
-				Catch 
-				{
-					$ThisNic = $Null
-				}
-				
-				If($? -and $Null -ne $ThisNic)
-				{
-					OutputNicItem $Nic $ThisNic $RemoteComputerName
-				}
-				ElseIf(!$?)
-				{
-					Write-Warning "$(Get-Date): Error retrieving NIC information"
-					Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-					Write-Warning "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-					If($MSWORD -or $PDF)
-					{
-						WriteWordLine 0 2 "Error retrieving NIC information" "" $Null 0 $False $True
-						WriteWordLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" "" $Null 0 $False $True
-						WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-						WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-						WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
-					}
-					If($Text)
-					{
-						Line 2 "Error retrieving NIC information"
-						Line 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-						Line 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-						Line 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-						Line 2 "need to rerun the script with Domain Admin credentials from the trusted Forest."
-					}
-					If($HTML)
-					{
-						WriteHTMLLine 0 2 "Error retrieving NIC information" -Option $htmlBold
-						WriteHTMLLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" -Option $htmlBold
-						WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-						WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-						WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
-					}
-				}
-				Else
-				{
-					Write-Verbose "$(Get-Date -Format G): No results Returned for NIC information"
-					If($MSWORD -or $PDF)
-					{
-						WriteWordLine 0 2 "No results Returned for NIC information" "" $Null 0 $False $True
-					}
-					If($Text)
-					{
-						Line 2 "No results Returned for NIC information"
-					}
-					If($HTML)
-					{
-						WriteHTMLLine 0 2 "No results Returned for NIC information" -Option $htmlBold
-					}
-				}
-			}
-		}	
-	}
-	ElseIf(!$?)
-	{
-		Write-Warning "$(Get-Date): Error retrieving NIC configuration information"
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "Error retrieving NIC configuration information" "" $Null 0 $False $True
-			WriteWordLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "Error retrieving NIC configuration information"
-			Line 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-			Line 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 2 "need to rerun the script with Domain Admin credentials from the trusted Forest."
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "Error retrieving NIC configuration information" -Option $htmlBold
-			WriteHTMLLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" -Option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
-		}
-	}
-	Else
-	{
-		Write-Verbose "$(Get-Date -Format G): No results Returned for NIC configuration information"
-		If($MSWORD -or $PDF)
-		{
-			WriteWordLine 0 2 "No results Returned for NIC configuration information" "" $Null 0 $False $True
-		}
-		If($Text)
-		{
-			Line 2 "No results Returned for NIC configuration information"
-		}
-		If($HTML)
-		{
-			WriteHTMLLine 0 2 "No results Returned for NIC configuration information" -Option $htmlBold
-		}
-	}
-	
-	If($MSWORD -or $PDF)
-	{
-		WriteWordLine 0 0 ""
-	}
-	If($Text)
-	{
-		Line 0 ""
-	}
-	If($HTML)
-	{
-		WriteHTMLLine 0 0 ""
-	}
-}
-
-Function OutputComputerItem
-{
-	Param([object]$Item, [string]$OS, [string]$RemoteComputerName)
-	
-	#get computer's power plan
-	#https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/get-the-active-power-plan-of-multiple-servers-with-powershell/ba-p/370429
-	
-	try 
-	{
-
-		$PowerPlan = (Get-WmiObject -ComputerName $RemoteComputerName -Class Win32_PowerPlan -Namespace "root\cimv2\power" |
-			Where-Object {$_.IsActive -eq $true} |
-			Select-Object @{Name = "PowerPlan"; Expression = {$_.ElementName}}).PowerPlan
-	}
-
-	catch 
-	{
-
-		$PowerPlan = $_.Exception
-
-	}	
-	
-	If($MSWord -or $PDF)
-	{
-		$ItemInformation = New-Object System.Collections.ArrayList
-		$ItemInformation.Add(@{ Data = "Manufacturer"; Value = $Item.manufacturer; }) > $Null
-		$ItemInformation.Add(@{ Data = "Model"; Value = $Item.model; }) > $Null
-		$ItemInformation.Add(@{ Data = "Domain"; Value = $Item.domain; }) > $Null
-		$ItemInformation.Add(@{ Data = "Operating System"; Value = $OS; }) > $Null
-		$ItemInformation.Add(@{ Data = "Power Plan"; Value = $PowerPlan; }) > $Null
-		$ItemInformation.Add(@{ Data = "Total Ram"; Value = "$($Item.totalphysicalram) GB"; }) > $Null
-		$ItemInformation.Add(@{ Data = "Physical Processors (sockets)"; Value = $Item.NumberOfProcessors; }) > $Null
-		$ItemInformation.Add(@{ Data = "Logical Processors (cores w/HT)"; Value = $Item.NumberOfLogicalProcessors; }) > $Null
-		$Table = AddWordTable -Hashtable $ItemInformation `
-		-Columns Data,Value `
-		-List `
-		-Format $wdTableGrid `
-		-AutoFit $wdAutoFitFixed;
-
-		## Set first column format
-		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
-
-		## IB - set column widths without recursion
-		$Table.Columns.Item(1).Width = 150;
-		$Table.Columns.Item(2).Width = 200;
-
-		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustNone)
-
-		FindWordDocumentEnd
-		$Table = $Null
-		WriteWordLine 0 0 ""
-	}
-	If($Text)
-	{
-		Line 2 "Manufacturer`t`t`t: " $Item.manufacturer
-		Line 2 "Model`t`t`t`t: " $Item.model
-		Line 2 "Domain`t`t`t`t: " $Item.domain
-		Line 2 "Operating System`t`t: " $OS
-		Line 2 "Power Plan`t`t`t: " $PowerPlan
-		Line 2 "Total Ram`t`t`t: $($Item.totalphysicalram) GB"
-		Line 2 "Physical Processors (sockets)`t: " $Item.NumberOfProcessors
-		Line 2 "Logical Processors (cores w/HT)`t: " $Item.NumberOfLogicalProcessors
-		Line 2 ""
-	}
-	If($HTML)
-	{
-		$rowdata = @()
-		$columnHeaders = @("Manufacturer",($htmlsilver -bor $htmlBold),$Item.manufacturer,$htmlwhite)
-		$rowdata += @(,('Model',($htmlsilver -bor $htmlBold),$Item.model,$htmlwhite))
-		$rowdata += @(,('Domain',($htmlsilver -bor $htmlBold),$Item.domain,$htmlwhite))
-		$rowdata += @(,('Operating System',($htmlsilver -bor $htmlBold),$OS,$htmlwhite))
-		$rowdata += @(,('Power Plan',($htmlsilver -bor $htmlBold),$PowerPlan,$htmlwhite))
-		$rowdata += @(,('Total Ram',($htmlsilver -bor $htmlBold),"$($Item.totalphysicalram) GB",$htmlwhite))
-		$rowdata += @(,('Physical Processors (sockets)',($htmlsilver -bor $htmlBold),$Item.NumberOfProcessors,$htmlwhite))
-		$rowdata += @(,('Logical Processors (cores w/HT)',($htmlsilver -bor $htmlBold),$Item.NumberOfLogicalProcessors,$htmlwhite))
-
-		$msg = ""
-		$columnWidths = @("150px","200px")
-		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
-		#WriteHTMLLine 0 0 " "
-	}
-}
-
-Function OutputDriveItem
-{
-	Param([object]$Drive)
-	
-	$xDriveType = ""
-	Switch ($drive.drivetype)
-	{
-		0	{$xDriveType = "Unknown"; Break}
-		1	{$xDriveType = "No Root Directory"; Break}
-		2	{$xDriveType = "Removable Disk"; Break}
-		3	{$xDriveType = "Local Disk"; Break}
-		4	{$xDriveType = "Network Drive"; Break}
-		5	{$xDriveType = "Compact Disc"; Break}
-		6	{$xDriveType = "RAM Disk"; Break}
-		Default {$xDriveType = "Unknown"; Break}
-	}
-	
-	$xVolumeDirty = ""
-	If(![String]::IsNullOrEmpty($drive.volumedirty))
-	{
-		If($drive.volumedirty)
-		{
-			$xVolumeDirty = "Yes"
-		}
-		Else
-		{
-			$xVolumeDirty = "No"
-		}
-	}
-
-	If($MSWORD -or $PDF)
-	{
-		$DriveInformation = New-Object System.Collections.ArrayList
-		$DriveInformation.Add(@{ Data = "Caption"; Value = $Drive.caption; }) > $Null
-		$DriveInformation.Add(@{ Data = "Size"; Value = "$($drive.drivesize) GB"; }) > $Null
-		If(![String]::IsNullOrEmpty($drive.filesystem))
-		{
-			$DriveInformation.Add(@{ Data = "File System"; Value = $Drive.filesystem; }) > $Null
-		}
-		$DriveInformation.Add(@{ Data = "Free Space"; Value = "$($drive.drivefreespace) GB"; }) > $Null
-		If(![String]::IsNullOrEmpty($drive.volumename))
-		{
-			$DriveInformation.Add(@{ Data = "Volume Name"; Value = $Drive.volumename; }) > $Null
-		}
-		If(![String]::IsNullOrEmpty($drive.volumedirty))
-		{
-			$DriveInformation.Add(@{ Data = "Volume is Dirty"; Value = $xVolumeDirty; }) > $Null
-		}
-		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
-		{
-			$DriveInformation.Add(@{ Data = "Volume Serial Number"; Value = $Drive.volumeserialnumber; }) > $Null
-		}
-		$DriveInformation.Add(@{ Data = "Drive Type"; Value = $xDriveType; }) > $Null
-		$Table = AddWordTable -Hashtable $DriveInformation `
-		-Columns Data,Value `
-		-List `
-		-Format $wdTableGrid `
-		-AutoFit $wdAutoFitFixed;
-
-		## Set first column format
-		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells `
-		-Bold `
-		-BackgroundColor $wdColorGray15;
-
-		## IB - set column widths without recursion
-		$Table.Columns.Item(1).Width = 150;
-		$Table.Columns.Item(2).Width = 200;
-
-		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
-
-		FindWordDocumentEnd
-		$Table = $Null
-		WriteWordLine 0 2 ""
-	}
-	If($Text)
-	{
-		Line 2 "Caption`t`t: " $drive.caption
-		Line 2 "Size`t`t: $($drive.drivesize) GB"
-		If(![String]::IsNullOrEmpty($drive.filesystem))
-		{
-			Line 2 "File System`t: " $drive.filesystem
-		}
-		Line 2 "Free Space`t: $($drive.drivefreespace) GB"
-		If(![String]::IsNullOrEmpty($drive.volumename))
-		{
-			Line 2 "Volume Name`t: " $drive.volumename
-		}
-		If(![String]::IsNullOrEmpty($drive.volumedirty))
-		{
-			Line 2 "Volume is Dirty`t: " $xVolumeDirty
-		}
-		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
-		{
-			Line 2 "Volume Serial #`t: " $drive.volumeserialnumber
-		}
-		Line 2 "Drive Type`t: " $xDriveType
-		Line 2 ""
-	}
-	If($HTML)
-	{
-		$rowdata = @()
-		$columnHeaders = @("Caption",($htmlsilver -bor $htmlBold),$Drive.caption,$htmlwhite)
-		$rowdata += @(,('Size',($htmlsilver -bor $htmlBold),"$($drive.drivesize) GB",$htmlwhite))
-
-		If(![String]::IsNullOrEmpty($drive.filesystem))
-		{
-			$rowdata += @(,('File System',($htmlsilver -bor $htmlBold),$Drive.filesystem,$htmlwhite))
-		}
-		$rowdata += @(,('Free Space',($htmlsilver -bor $htmlBold),"$($drive.drivefreespace) GB",$htmlwhite))
-		If(![String]::IsNullOrEmpty($drive.volumename))
-		{
-			$rowdata += @(,('Volume Name',($htmlsilver -bor $htmlBold),$Drive.volumename,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($drive.volumedirty))
-		{
-			$rowdata += @(,('Volume is Dirty',($htmlsilver -bor $htmlBold),$xVolumeDirty,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
-		{
-			$rowdata += @(,('Volume Serial Number',($htmlsilver -bor $htmlBold),$Drive.volumeserialnumber,$htmlwhite))
-		}
-		$rowdata += @(,('Drive Type',($htmlsilver -bor $htmlBold),$xDriveType,$htmlwhite))
-
-		$msg = ""
-		$columnWidths = @("150px","200px")
-		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
-		WriteHTMLLine 0 0 " "
-	}
-}
-
-Function OutputProcessorItem
-{
-	Param([object]$Processor)
-	
-	$xAvailability = ""
-	Switch ($processor.availability)
-	{
-		1	{$xAvailability = "Other"; Break}
-		2	{$xAvailability = "Unknown"; Break}
-		3	{$xAvailability = "Running or Full Power"; Break}
-		4	{$xAvailability = "Warning"; Break}
-		5	{$xAvailability = "In Test"; Break}
-		6	{$xAvailability = "Not Applicable"; Break}
-		7	{$xAvailability = "Power Off"; Break}
-		8	{$xAvailability = "Off Line"; Break}
-		9	{$xAvailability = "Off Duty"; Break}
-		10	{$xAvailability = "Degraded"; Break}
-		11	{$xAvailability = "Not Installed"; Break}
-		12	{$xAvailability = "Install Error"; Break}
-		13	{$xAvailability = "Power Save - Unknown"; Break}
-		14	{$xAvailability = "Power Save - Low Power Mode"; Break}
-		15	{$xAvailability = "Power Save - Standby"; Break}
-		16	{$xAvailability = "Power Cycle"; Break}
-		17	{$xAvailability = "Power Save - Warning"; Break}
-		Default	{$xAvailability = "Unknown"; Break}
-	}
-
-	If($MSWORD -or $PDF)
-	{
-		$ProcessorInformation = New-Object System.Collections.ArrayList
-		$ProcessorInformation.Add(@{ Data = "Name"; Value = $Processor.name; }) > $Null
-		$ProcessorInformation.Add(@{ Data = "Description"; Value = $Processor.description; }) > $Null
-		$ProcessorInformation.Add(@{ Data = "Max Clock Speed"; Value = "$($processor.maxclockspeed) MHz"; }) > $Null
-		If($processor.l2cachesize -gt 0)
-		{
-			$ProcessorInformation.Add(@{ Data = "L2 Cache Size"; Value = "$($processor.l2cachesize) KB"; }) > $Null
-		}
-		If($processor.l3cachesize -gt 0)
-		{
-			$ProcessorInformation.Add(@{ Data = "L3 Cache Size"; Value = "$($processor.l3cachesize) KB"; }) > $Null
-		}
-		If($processor.numberofcores -gt 0)
-		{
-			$ProcessorInformation.Add(@{ Data = "Number of Cores"; Value = $Processor.numberofcores; }) > $Null
-		}
-		If($processor.numberoflogicalprocessors -gt 0)
-		{
-			$ProcessorInformation.Add(@{ Data = "Number of Logical Processors (cores w/HT)"; Value = $Processor.numberoflogicalprocessors; }) > $Null
-		}
-		$ProcessorInformation.Add(@{ Data = "Availability"; Value = $xAvailability; }) > $Null
-		$Table = AddWordTable -Hashtable $ProcessorInformation `
-		-Columns Data,Value `
-		-List `
-		-Format $wdTableGrid `
-		-AutoFit $wdAutoFitFixed;
-
-		## Set first column format
-		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
-
-		## IB - set column widths without recursion
-		$Table.Columns.Item(1).Width = 150;
-		$Table.Columns.Item(2).Width = 200;
-
-		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
-
-		FindWordDocumentEnd
-		$Table = $Null
-		WriteWordLine 0 0 ""
-	}
-	If($Text)
-	{
-		Line 2 "Name`t`t`t`t: " $processor.name
-		Line 2 "Description`t`t`t: " $processor.description
-		Line 2 "Max Clock Speed`t`t`t: $($processor.maxclockspeed) MHz"
-		If($processor.l2cachesize -gt 0)
-		{
-			Line 2 "L2 Cache Size`t`t`t: $($processor.l2cachesize) KB"
-		}
-		If($processor.l3cachesize -gt 0)
-		{
-			Line 2 "L3 Cache Size`t`t`t: $($processor.l3cachesize) KB"
-		}
-		If($processor.numberofcores -gt 0)
-		{
-			Line 2 "# of Cores`t`t`t: " $processor.numberofcores
-		}
-		If($processor.numberoflogicalprocessors -gt 0)
-		{
-			Line 2 "# of Logical Procs (cores w/HT)`t: " $processor.numberoflogicalprocessors
-		}
-		Line 2 "Availability`t`t`t: " $xAvailability
-		Line 2 ""
-	}
-	If($HTML)
-	{
-		$rowdata = @()
-		$columnHeaders = @("Name",($htmlsilver -bor $htmlBold),$Processor.name,$htmlwhite)
-		$rowdata += @(,('Description',($htmlsilver -bor $htmlBold),$Processor.description,$htmlwhite))
-
-		$rowdata += @(,('Max Clock Speed',($htmlsilver -bor $htmlBold),"$($processor.maxclockspeed) MHz",$htmlwhite))
-		If($processor.l2cachesize -gt 0)
-		{
-			$rowdata += @(,('L2 Cache Size',($htmlsilver -bor $htmlBold),"$($processor.l2cachesize) KB",$htmlwhite))
-		}
-		If($processor.l3cachesize -gt 0)
-		{
-			$rowdata += @(,('L3 Cache Size',($htmlsilver -bor $htmlBold),"$($processor.l3cachesize) KB",$htmlwhite))
-		}
-		If($processor.numberofcores -gt 0)
-		{
-			$rowdata += @(,('Number of Cores',($htmlsilver -bor $htmlBold),$Processor.numberofcores,$htmlwhite))
-		}
-		If($processor.numberoflogicalprocessors -gt 0)
-		{
-			$rowdata += @(,('Number of Logical Processors (cores w/HT)',($htmlsilver -bor $htmlBold),$Processor.numberoflogicalprocessors,$htmlwhite))
-		}
-		$rowdata += @(,('Availability',($htmlsilver -bor $htmlBold),$xAvailability,$htmlwhite))
-
-		$msg = ""
-		$columnWidths = @("150px","200px")
-		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
-		WriteHTMLLine 0 0 " "
-	}
-}
-
-Function OutputNicItem
-{
-	Param([object]$Nic, [object]$ThisNic, [string]$RemoteComputerName)
-	
-	$powerMgmt = Get-WmiObject -computername $RemoteComputerName MSPower_DeviceEnable -Namespace root\wmi | Where-Object{$_.InstanceName -match [regex]::Escape($ThisNic.PNPDeviceID)}
-
-	If($? -and $Null -ne $powerMgmt)
-	{
-		If($powerMgmt.Enable -eq $True)
-		{
-			$PowerSaving = "Enabled"
-		}
-		Else
-		{
-			$PowerSaving = "Disabled"
-		}
-	}
-	Else
-	{
-        $PowerSaving = "N/A"
-	}
-	
-	$xAvailability = ""
-	Switch ($ThisNic.availability)
-	{
-		1		{$xAvailability = "Other"; Break}
-		2		{$xAvailability = "Unknown"; Break}
-		3		{$xAvailability = "Running or Full Power"; Break}
-		4		{$xAvailability = "Warning"; Break}
-		5		{$xAvailability = "In Test"; Break}
-		6		{$xAvailability = "Not Applicable"; Break}
-		7		{$xAvailability = "Power Off"; Break}
-		8		{$xAvailability = "Off Line"; Break}
-		9		{$xAvailability = "Off Duty"; Break}
-		10		{$xAvailability = "Degraded"; Break}
-		11		{$xAvailability = "Not Installed"; Break}
-		12		{$xAvailability = "Install Error"; Break}
-		13		{$xAvailability = "Power Save - Unknown"; Break}
-		14		{$xAvailability = "Power Save - Low Power Mode"; Break}
-		15		{$xAvailability = "Power Save - Standby"; Break}
-		16		{$xAvailability = "Power Cycle"; Break}
-		17		{$xAvailability = "Power Save - Warning"; Break}
-		Default	{$xAvailability = "Unknown"; Break}
-	}
-
-	#attempt to get Receive Side Scaling setting
-	$RSSEnabled = "N/A"
-	Try
-	{
-		#https://ios.developreference.com/article/10085450/How+do+I+enable+VRSS+(Virtual+Receive+Side+Scaling)+for+a+Windows+VM+without+relying+on+Enable-NetAdapterRSS%3F
-		$RSSEnabled = (Get-WmiObject -ComputerName $RemoteComputerName MSFT_NetAdapterRssSettingData -Namespace "root\StandardCimV2" -ea 0).Enabled
-
-		If($RSSEnabled)
-		{
-			$RSSEnabled = "Enabled"
-		}
-		Else
-		{
-			$RSSEnabled = "Disabled"
-		}
-	}
-	
-	Catch
-	{
-		$RSSEnabled = "Not available on $Script:RunningOS"
-	}
-
-	$xIPAddress = New-Object System.Collections.ArrayList
-	ForEach($IPAddress in $Nic.ipaddress)
-	{
-		$xIPAddress.Add("$($IPAddress)") > $Null
-	}
-
-	$xIPSubnet = New-Object System.Collections.ArrayList
-	ForEach($IPSubnet in $Nic.ipsubnet)
-	{
-		$xIPSubnet.Add("$($IPSubnet)") > $Null
-	}
-
-	If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
-	{
-		$nicdnsdomainsuffixsearchorder = $nic.dnsdomainsuffixsearchorder
-		$xnicdnsdomainsuffixsearchorder = New-Object System.Collections.ArrayList
-		ForEach($DNSDomain in $nicdnsdomainsuffixsearchorder)
-		{
-			$xnicdnsdomainsuffixsearchorder.Add("$($DNSDomain)") > $Null
-		}
-	}
-	
-	If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
-	{
-		$nicdnsserversearchorder = $nic.dnsserversearchorder
-		$xnicdnsserversearchorder = New-Object System.Collections.ArrayList
-		ForEach($DNSServer in $nicdnsserversearchorder)
-		{
-			$xnicdnsserversearchorder.Add("$($DNSServer)") > $Null
-		}
-	}
-
-	$xdnsenabledforwinsresolution = ""
-	If($nic.dnsenabledforwinsresolution)
-	{
-		$xdnsenabledforwinsresolution = "Yes"
-	}
-	Else
-	{
-		$xdnsenabledforwinsresolution = "No"
-	}
-	
-	$xTcpipNetbiosOptions = ""
-	Switch ($nic.TcpipNetbiosOptions)
-	{
-		0	{$xTcpipNetbiosOptions = "Use NetBIOS setting from DHCP Server"; Break}
-		1	{$xTcpipNetbiosOptions = "Enable NetBIOS"; Break}
-		2	{$xTcpipNetbiosOptions = "Disable NetBIOS"; Break}
-		Default	{$xTcpipNetbiosOptions = "Unknown"; Break}
-	}
-	
-	$xwinsenablelmhostslookup = ""
-	If($nic.winsenablelmhostslookup)
-	{
-		$xwinsenablelmhostslookup = "Yes"
-	}
-	Else
-	{
-		$xwinsenablelmhostslookup = "No"
-	}
-
-	If($MSWORD -or $PDF)
-	{
-		$NicInformation = New-Object System.Collections.ArrayList
-		$NicInformation.Add(@{ Data = "Name"; Value = $ThisNic.Name; }) > $Null
-		If($ThisNic.Name -ne $nic.description)
-		{
-			$NicInformation.Add(@{ Data = "Description"; Value = $Nic.description; }) > $Null
-		}
-		$NicInformation.Add(@{ Data = "Connection ID"; Value = $ThisNic.NetConnectionID; }) > $Null
-		If(validObject $Nic Manufacturer)
-		{
-			$NicInformation.Add(@{ Data = "Manufacturer"; Value = $Nic.manufacturer; }) > $Null
-		}
-		$NicInformation.Add(@{ Data = "Availability"; Value = $xAvailability; }) > $Null
-		$NicInformation.Add(@{ Data = "Allow the computer to turn off this device to save power"; Value = $PowerSaving; }) > $Null
-		$NicInformation.Add(@{ Data = "Receive Side Scaling"; Value = $RSSEnabled; }) > $Null
-		$NicInformation.Add(@{ Data = "Physical Address"; Value = $Nic.macaddress; }) > $Null
-		If($xIPAddress.Count -gt 1)
-		{
-			$NicInformation.Add(@{ Data = "IP Address"; Value = $xIPAddress[0]; }) > $Null
-			$NicInformation.Add(@{ Data = "Default Gateway"; Value = $Nic.Defaultipgateway; }) > $Null
-			$NicInformation.Add(@{ Data = "Subnet Mask"; Value = $xIPSubnet[0]; }) > $Null
-			$cnt = -1
-			ForEach($tmp in $xIPAddress)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					$NicInformation.Add(@{ Data = "IP Address"; Value = $tmp; }) > $Null
-					$NicInformation.Add(@{ Data = "Subnet Mask"; Value = $xIPSubnet[$cnt]; }) > $Null
-				}
-			}
-		}
-		Else
-		{
-			$NicInformation.Add(@{ Data = "IP Address"; Value = $xIPAddress; }) > $Null
-			$NicInformation.Add(@{ Data = "Default Gateway"; Value = $Nic.Defaultipgateway; }) > $Null
-			$NicInformation.Add(@{ Data = "Subnet Mask"; Value = $xIPSubnet; }) > $Null
-		}
-		If($nic.dhcpenabled)
-		{
-			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
-			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
-			$NicInformation.Add(@{ Data = "DHCP Enabled"; Value = $Nic.dhcpenabled; }) > $Null
-			$NicInformation.Add(@{ Data = "DHCP Lease Obtained"; Value = $dhcpleaseobtaineddate; }) > $Null
-			$NicInformation.Add(@{ Data = "DHCP Lease Expires"; Value = $dhcpleaseexpiresdate; }) > $Null
-			$NicInformation.Add(@{ Data = "DHCP Server"; Value = $Nic.dhcpserver; }) > $Null
-		}
-		If(![String]::IsNullOrEmpty($nic.dnsdomain))
-		{
-			$NicInformation.Add(@{ Data = "DNS Domain"; Value = $Nic.dnsdomain; }) > $Null
-		}
-		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
-		{
-			$NicInformation.Add(@{ Data = "DNS Search Suffixes"; Value = $xnicdnsdomainsuffixsearchorder[0]; }) > $Null
-			$cnt = -1
-			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					$NicInformation.Add(@{ Data = ""; Value = $tmp; }) > $Null
-				}
-			}
-		}
-		$NicInformation.Add(@{ Data = "DNS WINS Enabled"; Value = $xdnsenabledforwinsresolution; }) > $Null
-		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
-		{
-			$NicInformation.Add(@{ Data = "DNS Servers"; Value = $xnicdnsserversearchorder[0]; }) > $Null
-			$cnt = -1
-			ForEach($tmp in $xnicdnsserversearchorder)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					$NicInformation.Add(@{ Data = ""; Value = $tmp; }) > $Null
-				}
-			}
-		}
-		$NicInformation.Add(@{ Data = "NetBIOS Setting"; Value = $xTcpipNetbiosOptions; }) > $Null
-		$NicInformation.Add(@{ Data = "WINS: Enabled LMHosts"; Value = $xwinsenablelmhostslookup; }) > $Null
-		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
-		{
-			$NicInformation.Add(@{ Data = "Host Lookup File"; Value = $Nic.winshostlookupfile; }) > $Null
-		}
-		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
-		{
-			$NicInformation.Add(@{ Data = "Primary Server"; Value = $Nic.winsprimaryserver; }) > $Null
-		}
-		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
-		{
-			$NicInformation.Add(@{ Data = "Secondary Server"; Value = $Nic.winssecondaryserver; }) > $Null
-		}
-		If(![String]::IsNullOrEmpty($nic.winsscopeid))
-		{
-			$NicInformation.Add(@{ Data = "Scope ID"; Value = $Nic.winsscopeid; }) > $Null
-		}
-		$Table = AddWordTable -Hashtable $NicInformation `
-		-Columns Data,Value `
-		-List `
-		-Format $wdTableGrid `
-		-AutoFit $wdAutoFitFixed;
-
-		## Set first column format
-		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
-
-		## IB - set column widths without recursion
-		$Table.Columns.Item(1).Width = 150;
-		$Table.Columns.Item(2).Width = 200;
-
-		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
-
-		FindWordDocumentEnd
-		$Table = $Null
-		WriteWordLine 0 0 ""
-	}
-	If($Text)
-	{
-		Line 2 "Name`t`t`t: " $ThisNic.Name
-		If($ThisNic.Name -ne $nic.description)
-		{
-			Line 2 "Description`t`t: " $nic.description
-		}
-		Line 2 "Connection ID`t`t: " $ThisNic.NetConnectionID
-		If(validObject $Nic Manufacturer)
-		{
-			Line 2 "Manufacturer`t`t: " $Nic.manufacturer
-		}
-		Line 2 "Availability`t`t: " $xAvailability
-		Line 2 "Allow computer to turn "
-		Line 2 "off device to save power: " $PowerSaving
-		Line 2 "Physical Address`t: " $nic.macaddress
-		Line 2 "Receive Side Scaling`t: " $RSSEnabled
-		Line 2 "IP Address`t`t: " $xIPAddress[0]
-		$cnt = -1
-		ForEach($tmp in $xIPAddress)
-		{
-			$cnt++
-			If($cnt -gt 0)
-			{
-				Line 5 "  " $tmp
-			}
-		}
-		Line 2 "Default Gateway`t`t: " $Nic.Defaultipgateway
-		Line 2 "Subnet Mask`t`t: " $xIPSubnet[0]
-		$cnt = -1
-		ForEach($tmp in $xIPSubnet)
-		{
-			$cnt++
-			If($cnt -gt 0)
-			{
-				Line 5 "  " $tmp
-			}
-		}
-		If($nic.dhcpenabled)
-		{
-			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
-			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
-			Line 2 "DHCP Enabled`t`t: " $nic.dhcpenabled
-			Line 2 "DHCP Lease Obtained`t: " $dhcpleaseobtaineddate
-			Line 2 "DHCP Lease Expires`t: " $dhcpleaseexpiresdate
-			Line 2 "DHCP Server`t`t:" $nic.dhcpserver
-		}
-		If(![String]::IsNullOrEmpty($nic.dnsdomain))
-		{
-			Line 2 "DNS Domain`t`t: " $nic.dnsdomain
-		}
-		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
-		{
-			[int]$x = 1
-			Line 2 "DNS Search Suffixes`t: " $xnicdnsdomainsuffixsearchorder[0]
-			$cnt = -1
-			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					Line 5 "  " $tmp
-				}
-			}
-		}
-		Line 2 "DNS WINS Enabled`t: " $xdnsenabledforwinsresolution
-		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
-		{
-			[int]$x = 1
-			Line 2 "DNS Servers`t`t: " $xnicdnsserversearchorder[0]
-			$cnt = -1
-			ForEach($tmp in $xnicdnsserversearchorder)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					Line 5 "  " $tmp
-				}
-			}
-		}
-		Line 2 "NetBIOS Setting`t`t: " $xTcpipNetbiosOptions
-		Line 2 "WINS:"
-		Line 3 "Enabled LMHosts`t: " $xwinsenablelmhostslookup
-		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
-		{
-			Line 3 "Host Lookup File`t: " $nic.winshostlookupfile
-		}
-		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
-		{
-			Line 3 "Primary Server`t: " $nic.winsprimaryserver
-		}
-		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
-		{
-			Line 3 "Secondary Server`t: " $nic.winssecondaryserver
-		}
-		If(![String]::IsNullOrEmpty($nic.winsscopeid))
-		{
-			Line 3 "Scope ID`t`t: " $nic.winsscopeid
-		}
-		Line 0 ""
-	}
-	If($HTML)
-	{
-		$rowdata = @()
-		$columnHeaders = @("Name",($htmlsilver -bor $htmlBold),$ThisNic.Name,$htmlwhite)
-		If($ThisNic.Name -ne $nic.description)
-		{
-			$rowdata += @(,('Description',($htmlsilver -bor $htmlBold),$Nic.description,$htmlwhite))
-		}
-		$rowdata += @(,('Connection ID',($htmlsilver -bor $htmlBold),$ThisNic.NetConnectionID,$htmlwhite))
-		If(validObject $Nic Manufacturer)
-		{
-			$rowdata += @(,('Manufacturer',($htmlsilver -bor $htmlBold),$Nic.manufacturer,$htmlwhite))
-		}
-		$rowdata += @(,('Availability',($htmlsilver -bor $htmlBold),$xAvailability,$htmlwhite))
-		$rowdata += @(,('Allow the computer to turn off this device to save power',($htmlsilver -bor $htmlBold),$PowerSaving,$htmlwhite))
-		$rowdata += @(,('Physical Address',($htmlsilver -bor $htmlBold),$Nic.macaddress,$htmlwhite))
-		$rowdata += @(,('Receive Side Scaling',($htmlsilver -bor $htmlbold),$RSSEnabled,$htmlwhite))
-		$rowdata += @(,('IP Address',($htmlsilver -bor $htmlBold),$xIPAddress[0],$htmlwhite))
-		$cnt = -1
-		ForEach($tmp in $xIPAddress)
-		{
-			$cnt++
-			If($cnt -gt 0)
-			{
-				$rowdata += @(,('IP Address',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
-			}
-		}
-		$rowdata += @(,('Default Gateway',($htmlsilver -bor $htmlBold),$Nic.Defaultipgateway[0],$htmlwhite))
-		$rowdata += @(,('Subnet Mask',($htmlsilver -bor $htmlBold),$xIPSubnet[0],$htmlwhite))
-		$cnt = -1
-		ForEach($tmp in $xIPSubnet)
-		{
-			$cnt++
-			If($cnt -gt 0)
-			{
-				$rowdata += @(,('Subnet Mask',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
-			}
-		}
-		If($nic.dhcpenabled)
-		{
-			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
-			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
-			$rowdata += @(,('DHCP Enabled',($htmlsilver -bor $htmlBold),$Nic.dhcpenabled,$htmlwhite))
-			$rowdata += @(,('DHCP Lease Obtained',($htmlsilver -bor $htmlBold),$dhcpleaseobtaineddate,$htmlwhite))
-			$rowdata += @(,('DHCP Lease Expires',($htmlsilver -bor $htmlBold),$dhcpleaseexpiresdate,$htmlwhite))
-			$rowdata += @(,('DHCP Server',($htmlsilver -bor $htmlBold),$Nic.dhcpserver,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($nic.dnsdomain))
-		{
-			$rowdata += @(,('DNS Domain',($htmlsilver -bor $htmlBold),$Nic.dnsdomain,$htmlwhite))
-		}
-		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
-		{
-			$rowdata += @(,('DNS Search Suffixes',($htmlsilver -bor $htmlBold),$xnicdnsdomainsuffixsearchorder[0],$htmlwhite))
-			$cnt = -1
-			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					$rowdata += @(,('',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
-				}
-			}
-		}
-		$rowdata += @(,('DNS WINS Enabled',($htmlsilver -bor $htmlBold),$xdnsenabledforwinsresolution,$htmlwhite))
-		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
-		{
-			$rowdata += @(,('DNS Servers',($htmlsilver -bor $htmlBold),$xnicdnsserversearchorder[0],$htmlwhite))
-			$cnt = -1
-			ForEach($tmp in $xnicdnsserversearchorder)
-			{
-				$cnt++
-				If($cnt -gt 0)
-				{
-					$rowdata += @(,('',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
-				}
-			}
-		}
-		$rowdata += @(,('NetBIOS Setting',($htmlsilver -bor $htmlBold),$xTcpipNetbiosOptions,$htmlwhite))
-		$rowdata += @(,('WINS: Enabled LMHosts',($htmlsilver -bor $htmlBold),$xwinsenablelmhostslookup,$htmlwhite))
-		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
-		{
-			$rowdata += @(,('Host Lookup File',($htmlsilver -bor $htmlBold),$Nic.winshostlookupfile,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
-		{
-			$rowdata += @(,('Primary Server',($htmlsilver -bor $htmlBold),$Nic.winsprimaryserver,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
-		{
-			$rowdata += @(,('Secondary Server',($htmlsilver -bor $htmlBold),$Nic.winssecondaryserver,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($nic.winsscopeid))
-		{
-			$rowdata += @(,('Scope ID',($htmlsilver -bor $htmlBold),$Nic.winsscopeid,$htmlwhite))
-		}
-
-		$msg = ""
-		$columnWidths = @("150px","200px")
-		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
-		WriteHTMLLine 0 0 " "
-	}
-	$obj1 = [PSCustomObject] @{
-		ServerName   = $RemoteComputerName
-		Name         = $ThisNic.Name
-		Manufacturer = $ThisNic.manufacturer
-		PowerMgmt    = $PowerSaving
-		RSS          = $RSSEnabled
-	}
-	$null = $Script:ServerNICItemsToReview.Add($obj1)
 }
 #endregion
 
@@ -5555,9 +4327,9 @@ Function ProcessPVSFarm
 	If($Text)
 	{
 		Line 0 "PVS Farm Information"
-		Line 0 "General"
-		Line 1 "PVS Farm Name`t: " $Script:farm.farmName
-		Line 1 "Version`t`t: " $Script:PVSFullVersion
+		Line 1 "General"
+		Line 2 "PVS Farm Name`t: " $Script:farm.farmName
+		Line 2 "Version`t`t: " $Script:PVSFullVersion
 		Line 0 ""
 	}
 	If($HTML)
@@ -5581,8 +4353,8 @@ Function ProcessPVSFarm
 	}
 	If($Text)
 	{
-		Line 0 "Security"
-		Line 1 "Groups with Farm Administrator access:"
+		Line 1 "Security"
+		Line 2 "Groups with Farm Administrator access:"
 	}
 	If($HTML)
 	{
@@ -5620,8 +4392,8 @@ Function ProcessPVSFarm
 	}
 	If($Text)
 	{
-		Line 0 "Groups"
-		Line 1 "All the Security Groups that can be assigned access rights:"
+		Line 1 "Groups"
+		Line 2 "All the Security Groups that can be assigned access rights:"
 	}
 	If($HTML)
 	{
@@ -5707,33 +4479,33 @@ Function ProcessPVSFarm
 	}
 	If($Text)
 	{
-		Line 0 "Licensing"
-		Line 1 "License server name`t: " $Script:farm.licenseServer
-		Line 1 "License server IP`t: " $LicenseServerIPAddress
-		Line 1 "License server port`t: " $Script:farm.licenseServerPort
+		Line 1 "Licensing"
+		Line 2 "License server name`t: " $Script:farm.licenseServer
+		Line 2 "License server IP`t: " $LicenseServerIPAddress
+		Line 2 "License server port`t: " $Script:farm.licenseServerPort
 		If($Script:PVSFullVersion -ge "7.19")
 		{
-			Line 1 "Citrix Provisioning license type" ""
+			Line 2 "Citrix Provisioning license type" ""
 			If($Script:farm.LicenseSKU -eq 0)
 			{
-				Line 2 "On-Premises`t: " "Yes"
-				Line 3 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
-				Line 2 "Cloud`t`t: " "No"
+				Line 3 "On-Premises`t: " "Yes"
+				Line 4 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
+				Line 3 "Cloud`t`t: " "No"
 			}
 			ElseIf($Scrpt:farm.LicenseSKU -eq 1)
 			{
-				Line 2 "On-Premises`t: " "No"
-				Line 3 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
-				Line 2 "Cloud`t`t: " "Yes"
+				Line 3 "On-Premises`t: " "No"
+				Line 4 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
+				Line 3 "Cloud`t`t: " "Yes"
 			}
 			Else
 			{
-				Line 2 "On-Premises`t: " "ERROR: Unable to determine the PVS License SKU Tpe"
+				Line 3 "On-Premises`t: " "ERROR: Unable to determine the PVS License SKU Tpe"
 			}
 		}
 		ElseIf($Script:PVSFullVersion -ge "7.13")
 		{
-			Line 1 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
+			Line 2 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
 		}
 		Line 0 ""
 	}
@@ -5843,17 +4615,17 @@ Function ProcessPVSFarm
 	}
 	If($Text)
 	{
-		Line 0 "Options"
-		Line 1 "Auto-Add"
-		Line 2 "Enable auto-add: " $Script:FarmAutoAddEnabled.ToString()
+		Line 1 "Options"
+		Line 2 "Auto-Add"
+		Line 3 "Enable auto-add: " $Script:FarmAutoAddEnabled.ToString()
 		If($Script:FarmAutoAddEnabled)
 		{
-			Line 2 "Add new devices to this site: " $Script:farm.DefaultSiteName
+			Line 3 "Add new devices to this site: " $Script:farm.DefaultSiteName
 		}
-		Line 1 "Auditing"
-		Line 2 "Enable auditing: " $Script:farmauditingEnabled.ToString()
-		Line 1 "Offline database support"
-		Line 2 "Enable offline database support: " $Script:farmofflineDatabaseSupportEnabled.ToString()
+		Line 2 "Auditing"
+		Line 3 "Enable auditing: " $Script:farmauditingEnabled.ToString()
+		Line 2 "Offline database support"
+		Line 3 "Enable offline database support: " $Script:farmofflineDatabaseSupportEnabled.ToString()
 		Line 0 ""
 	}
 	If($HTML)
@@ -5908,10 +4680,10 @@ Function ProcessPVSFarm
 	}
 	If($Text)
 	{
-		Line 0 "vDisk Version"
-		Line 1 "Alert if number of versions from base image exceeds`t`t: " $Script:farm.maxVersions.ToString()
-		Line 1 "Merge after automated vDisk update, if over alert threshold`t: " $xautomaticMergeEnabled
-		Line 1 "Default access mode for new merge versions`t`t`t: " $xmergeMode
+		Line 1 "vDisk Version"
+		Line 2 "Alert if number of versions from base image exceeds`t`t: " $Script:farm.maxVersions.ToString()
+		Line 2 "Merge after automated vDisk update, if over alert threshold`t: " $xautomaticMergeEnabled
+		Line 2 "Default access mode for new merge versions`t`t`t: " $xmergeMode
 		Line 0 ""
 	}
 	If($HTML)
@@ -5974,25 +4746,25 @@ Function ProcessPVSFarm
 	}
 	If($Text)
 	{
-		Line 0 "Status"
-		Line 1 "Current status of the farm:"
-		Line 2 "Database server`t`t`t: " $Script:farm.databaseServerName
-		Line 2 "Database server IP`t`t: " $SQLServerIPAddress
+		Line 1 "Status"
+		Line 2 "Current status of the farm:"
+		Line 3 "Database server`t`t`t: " $Script:farm.databaseServerName
+		Line 3 "Database server IP`t`t: " $SQLServerIPAddress
 		If(![String]::IsNullOrEmpty($farm.databaseInstanceName))
 		{
-			Line 2 "Database instance`t`t: " $Script:farm.databaseInstanceName
+			Line 3 "Database instance`t`t: " $Script:farm.databaseInstanceName
 		}
-		Line 2 "Database`t`t`t: " $Script:farm.databaseName
+		Line 3 "Database`t`t`t: " $Script:farm.databaseName
 		If(![String]::IsNullOrEmpty($farm.failoverPartnerServerName))
 		{
-			Line 2 "Failover Partner Server`t`t: " $Script:farm.failoverPartnerServerName
-			Line 2 "Failover Partner Server IP`t: " $FailoverSQLServerIPAddress
+			Line 3 "Failover Partner Server`t`t: " $Script:farm.failoverPartnerServerName
+			Line 3 "Failover Partner Server IP`t: " $FailoverSQLServerIPAddress
 		}
 		If(![String]::IsNullOrEmpty($farm.failoverPartnerInstanceName))
 		{
-			Line 2 "Failover Partner Instance`t: " $Script:farm.failoverPartnerInstanceName
+			Line 3 "Failover Partner Instance`t: " $Script:farm.failoverPartnerInstanceName
 		}
-		Line 2 $xadGroupsEnabled
+		Line 3 $xadGroupsEnabled
 		Line 0 ""
 	}
 	If($HTML)
@@ -6069,9 +4841,9 @@ Function ProcessPVSFarm
 			}
 			If($Text)
 			{
-				Line 0 "Problem Report"
-				Line 1 "Configure your My Citrix credentials in order to submit problem reports"
-				Line 1 "My Citrix Username: " $CISUserName
+				Line 1 "Problem Report"
+				Line 2 "Configure your My Citrix credentials in order to submit problem reports"
+				Line 2 "My Citrix Username: " $CISUserName
 				Line 0 ""
 			}
 			If($HTML)
@@ -6092,6 +4864,71 @@ Function ProcessPVSFarm
 #endregion
 
 #region process PVS Site functions
+Function DeviceStatus
+{
+	Param($xDevice)
+
+	If($Null -eq $xDevice -or $xDevice.status -eq "" -or $xDevice.status -eq "0")
+	{
+		Line 3 "Target device inactive"
+	}
+	Else
+	{
+		Line 2 "Target device active"
+		Line 3 "IP Address: " $xDevice.ip
+		Line 3 "Server: $($xDevice.serverName)"
+		Line 3 "Server IP: $($xDevice.serverIpConnection)"
+		Line 3 "Server Port: $($xDevice.serverPortConnection)"
+		Line 3 "vDisk: " $xDevice.diskLocatorName
+		Line 3 "vDisk version: " $xDevice.diskVersion
+		Line 3 "vDisk name: " $xDevice.diskFileName
+		Line 3 "vDisk access: " -nonewline
+		Switch ($xDevice.diskVersionAccess)
+		{
+			0 {Line 0 "Production"; Break}
+			1 {Line 0 "Test"; Break}
+			2 {Line 0 "Maintenance"; Break}
+			3 {Line 0 "Personal vDisk"; Break}
+			Default {Line 0 "vDisk access type could not be determined: $($xDevice.diskVersionAccess)"; Break}
+		}
+		If($PVSVersion -eq "7")
+		{
+			Line 3 "Local write cache disk:$($xDevice.localWriteCacheDiskSize)GB"
+			Line 3 "Boot mode:" -nonewline
+			Switch($xDevice.bdmBoot)
+			{
+				0 {Line 0 "PXE boot"; Break}
+				1 {Line 0 "BDM disk"; Break}
+				Default {Line 0 "Boot mode could not be determined: $($xDevice.bdmBoot)"; Break}
+			}
+		}
+		Switch($xDevice.licenseType)
+		{
+			0 {Line 3 "No License"; Break}
+			1 {Line 3 "Desktop License"; Break}
+			2 {Line 3 "Server License"; Break}
+			5 {Line 3 "OEM SmartClient License"; Break}
+			6 {Line 3 "XenApp License"; Break}
+			7 {Line 3 "XenDesktop License"; Break}
+			Default {Line 0 "Device license type could not be determined: $($xDevice.licenseType)"; Break}
+		}
+		
+		Line 3 "Logging level: " -nonewline
+		Switch ($xDevice.logLevel)
+		{
+			0   {Line 0 "Off"; Break}
+			1   {Line 0 "Fatal"; Break}
+			2   {Line 0 "Error"; Break}
+			3   {Line 0 "Warning"; Break}
+			4   {Line 0 "Info"; Break}
+			5   {Line 0 "Debug"; Break}
+			6   {Line 0 "Trace"; Break}
+			Default {Line 0 "Logging level could not be determined: $($xDevice.logLevel)"; Break}
+		}
+	}
+	Line 0 ""
+}
+
 Function ProcessPVSSite
 {
 	#build site values
@@ -6146,8 +4983,8 @@ Function ProcessPVSSite
 			If($Text)
 			{
 				Line 0 "Site properties"
-				Line 0 "General"
-				Line 1 "Site Name: " $PVSSite.siteName
+				Line 1 "General"
+				Line 2 "Site Name: " $PVSSite.siteName
 				Line 0 ""
 			}
 			If($HTML)
@@ -6168,8 +5005,8 @@ Function ProcessPVSSite
 			}
 			If($Text)
 			{
-				Line 0 "Security"
-				Line 1 "Groups with Site Administrator access:"
+				Line 1 "Security"
+				Line 2 "Groups with Site Administrator access:"
 			}
 			If($HTML)
 			{
@@ -6189,7 +5026,20 @@ Function ProcessPVSSite
 			ElseIf($? -and $Null -eq $AuthGroups)
 			{
 				$txt = "There are no Site Administrators defined"
-				OutputNotice $txt
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 0 1 $txt
+					WriteWordLIne 0 0 ""
+				}
+				If($Text)
+				{
+					Line 3 $txt
+					Line 0 ""
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 0 1 $txt
+				}
 			}
 			Else
 			{
@@ -6241,10 +5091,10 @@ Function ProcessPVSSite
 			}
 			If($Text)
 			{
-				Line 0 "Options"
-				Line 1 "Auto-Add"
-				Line 2 "Add new devices to this collection`t: " $xAutoAdd
-				Line 2 "Seconds between vDisk inventory scans`t: " $PVSSite.InventoryFilePollingInterval.ToString()
+				Line 1 "Options"
+				Line 2 "Auto-Add"
+				Line 3 "Add new devices to this collection`t: " $xAutoAdd
+				Line 3 "Seconds between vDisk inventory scans`t: " $PVSSite.InventoryFilePollingInterval.ToString()
 				Line 0 ""
 			}
 			If($HTML)
@@ -6285,9 +5135,9 @@ Function ProcessPVSSite
 				}
 				If($Text)
 				{
-					Line 0 "vDisk Update"
-					Line 1 "Enable automatic vDisk updates on this site`t: Yes"
-					Line 1 "Server to run vDisk updates for this site`t: " $PVSSite.diskUpdateServerName
+					Line 1 "vDisk Update"
+					Line 2 "Enable automatic vDisk updates on this site`t: Yes"
+					Line 2 "Server to run vDisk updates for this site`t: " $PVSSite.diskUpdateServerName
 					Line 0 ""
 				}
 				If($HTML)
@@ -6322,8 +5172,8 @@ Function ProcessPVSSite
 				}
 				If($Text)
 				{
-					Line 0 "vDisk Update"
-					Line 1 "Enable automatic vDisk updates on this site: No"
+					Line 1 "vDisk Update"
+					Line 2 "Enable automatic vDisk updates on this site: No"
 					Line 0 ""
 				}
 				If($HTML)
@@ -6371,8 +5221,7 @@ Function ProcessPVSSite
 				If($Text)
 				{
 					Line 0 ""
-					Line 0 "Servers"
-					Line 0 ""
+					Line 1 "Servers"
 				}
 				If($HTML)
 				{
@@ -6388,7 +5237,7 @@ Function ProcessPVSSite
 						#general tab
 						Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing General Tab"
 
-						If($Server.eventLoggingEnabled)
+						If($Server.eventLoggingEnabled -eq "1")
 						{
 							$xeventLoggingEnabled = $True
 						}
@@ -6425,11 +5274,10 @@ Function ProcessPVSSite
 						}
 						If($Text)
 						{
-							Line 0 $Server.serverName
-							Line 0 "Server Properties"
-							Line 1 "General"
-							Line 2 "Name`t`t: " $Server.serverName
-							Line 2 "Log events to the server's Windows Event Log: " $xeventLoggingEnabled
+							Line 2 "Server Properties"
+							Line 3 "General"
+							Line 4 "Name`t`t: " $Server.serverName
+							Line 4 "Log events to the server's Windows Event Log: " $xeventLoggingEnabled
 							Line 0 ""
 						}
 						If($HTML)
@@ -6506,14 +5354,14 @@ Function ProcessPVSSite
 						}
 						If($Text)
 						{
-							Line 1 "Network"
+							Line 3 "Network"
 							If($Script:PVSVersion -eq "7")
 							{
-								Line 2 "Streaming IP addresses`t: " $StreamingIPs[0]
+								Line 4 "Streaming IP addresses`t: " $StreamingIPs[0]
 							}
 							Else
 							{
-								Line 2 "IP addresses`t: " $StreamingIPs[0]
+								Line 4 "IP addresses`t: " $StreamingIPs[0]
 							}
 
 							$cnt = -1
@@ -6522,16 +5370,16 @@ Function ProcessPVSSite
 								$cnt++
 								If($cnt -gt 0)
 								{
-									Line 5 "  " $tmp
+									Line 6 "  " $tmp
 								}
 							}
 
-							Line 2 "Ports"
-							Line 3 "First port`t: " $Server.firstPort
-							Line 3 "Last port`t: " $Server.lastPort
+							Line 4 "Ports"
+							Line 5 "First port`t: " $Server.firstPort
+							Line 5 "Last port`t: " $Server.lastPort
 							If($Script:PVSVersion -eq "7")
 							{
-								Line 2 "Management IP`t`t: " $Server.managementIp
+								Line 4 "Management IP`t`t: " $Server.managementIp
 							}
 							Line 0 ""
 						}
@@ -6893,114 +5741,1438 @@ Function VerifyPVSSOAPService
 	}
 }
 
-Function GetInstalledRolesAndFeatures
+#region code for hardware data
+Function GetComputerWMIInfo
 {
-	Param([string]$ComputerName)
+	Param([string]$RemoteComputerName)
 	
-	#don't do for server 2008 r2 because get-windowsfeature doesn't support -computername
-	If($Script:RunningOS -like "*2008*")
+	# original work by Kees Baggerman, 
+	# Senior Technical Consultant @ Inter Access
+	# k.baggerman@myvirtualvision.com
+	# @kbaggerman on Twitter
+	# http://blog.myvirtualvision.com
+	# modified 1-May-2014 to work in trusted AD Forests and using different domain admin credentials	
+	# modified 17-Aug-2016 to fix a few issues with Text and HTML output
+	# modified 29-Apr-2018 to change from Arrays to New-Object System.Collections.ArrayList
+
+	#Get Computer info
+	Write-Verbose "$(Get-Date -Format G): `t`tProcessing WMI Computer information"
+	Write-Verbose "$(Get-Date -Format G): `t`t`tHardware information"
+	If($MSWord -or $PDF)
 	{
-		#don't do anything
+		WriteWordLine 3 0 "Computer Information: $($RemoteComputerName)"
+		WriteWordLine 4 0 "General Computer"
+	}
+	If($Text)
+	{
+		Line 3 "Computer Information: $($RemoteComputerName)"
+		Line 4 "General Computer"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 3 0 "Computer Information: $($RemoteComputerName)"
+		WriteHTMLLine 4 0 "General Computer"
+	}
+	
+	Try
+	{
+		$Results = Get-WmiObject -computername $RemoteComputerName win32_computersystem
+	}
+	
+	Catch
+	{
+		$Results = $Null
+	}
+	
+	If($? -and $Null -ne $Results)
+	{
+		$ComputerItems = $Results | Select-Object Manufacturer, Model, Domain, `
+		@{N="TotalPhysicalRam"; E={[math]::round(($_.TotalPhysicalMemory / 1GB),0)}}, `
+		NumberOfProcessors, NumberOfLogicalProcessors
+		$Results = $Null
+		[string]$ComputerOS = (Get-WmiObject -class Win32_OperatingSystem -computername $RemoteComputerName -EA 0).Caption
+
+		ForEach($Item in $ComputerItems)
+		{
+			OutputComputerItem $Item $ComputerOS $RemoteComputerName
+		}
+	}
+	ElseIf(!$?)
+	{
+		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
+		Write-Warning "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)" "" $Null 0 $False $True
+			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
+			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
+			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
+			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
+			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
+			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+			Line 5 ""
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)" -option $htmlBold
+			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -option $htmlBold
+			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
+			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+		}
 	}
 	Else
 	{
-		#added V1.16 get Windows installed Roles and Features
-		Write-Verbose "$(Get-Date -Format G): `t`t`t`tRetrieving Windows installed Roles and Features"
-		[bool]$GotWinComponents = $True
-		
-		$results = Get-WindowsFeature -ComputerName $ComputerName -EA 0 4> $Null
-		
-		If(!$?)
+		Write-Verbose "$(Get-Date -Format G): No results Returned for Computer information"
+		If($MSWORD -or $PDF)
 		{
-			$GotWinComponents = $False
+			WriteWordLine 0 2 "No results Returned for Computer information" "" $Null 0 $False $True
 		}
-		
-		$WinComponents = $results | Where-Object Installed | Select-Object DisplayName,Name,FeatureType | Sort-Object DisplayName 
-		
-		If($GotWinComponents -eq $False)
+		If($Text)
 		{
-			Line 1 "No Windows installed Roles and Features were found"
-			Line 0 ""
+			Line 5 "No results Returned for Computer information"
 		}
-		Else
+		If($HTML)
 		{
-			ForEach($Component in $WinComponents)
+			WriteHTMLLine 0 2 "No results Returned for Computer information" -Option $htmlBold
+		}
+	}
+	
+	#Get Disk info
+	Write-Verbose "$(Get-Date -Format G): `t`t`tDrive information"
+
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 4 0 "Drive(s)"
+	}
+	If($Text)
+	{
+		Line 4 "Drive(s)"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 4 0 "Drive(s)"
+	}
+
+	Try
+	{
+		$Results = Get-WmiObject -computername $RemoteComputerName Win32_LogicalDisk
+	}
+	
+	Catch
+	{
+		$Results = $Null
+	}
+
+	If($? -and $Null -ne $Results)
+	{
+		$drives = $Results | Select-Object caption, @{N="drivesize"; E={[math]::round(($_.size / 1GB),0)}}, 
+		filesystem, @{N="drivefreespace"; E={[math]::round(($_.freespace / 1GB),0)}}, 
+		volumename, drivetype, volumedirty, volumeserialnumber
+		$Results = $Null
+		ForEach($drive in $drives)
+		{
+			If($drive.caption -ne "A:" -and $drive.caption -ne "B:")
 			{
-				$obj1 = [PSCustomObject] @{
-					DisplayName	= $Component.DisplayName			
-					Name		= $Component.Name			
-					ServerName	= $ComputerName			
-					FeatureType	= $Component.FeatureType			
-				}
-				$null = $Script:WinInstalledComponents.Add($obj1)
+				OutputDriveItem $drive
 			}
 		}
+	}
+	ElseIf(!$?)
+	{
+		Write-Verbose "$(Get-Date -Format G): Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
+		Write-Warning "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)" "" $Null 0 $False $True
+			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
+			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
+			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
+			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
+			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
+			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)" -Option $htmlBold
+			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
+			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
+			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+		}
+	}
+	Else
+	{
+		Write-Verbose "$(Get-Date -Format G): No results Returned for Drive information"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "No results Returned for Drive information" "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "No results Returned for Drive information"
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "No results Returned for Drive information" -Option $htmlBold
+		}
+	}
+	
+	#Get CPU's and stepping
+	Write-Verbose "$(Get-Date -Format G): `t`t`tProcessor information"
+
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 4 0 "Processor(s)"
+	}
+	If($Text)
+	{
+		Line 4 "Processor(s)"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 4 0 "Processor(s)"
+	}
+
+	Try
+	{
+		$Results = Get-WmiObject -computername $RemoteComputerName win32_Processor
+	}
+	
+	Catch
+	{
+		$Results = $Null
+	}
+
+	If($? -and $Null -ne $Results)
+	{
+		$Processors = $Results | Select-Object availability, name, description, maxclockspeed, 
+		l2cachesize, l3cachesize, numberofcores, numberoflogicalprocessors
+		$Results = $Null
+		ForEach($processor in $processors)
+		{
+			OutputProcessorItem $processor
+		}
+	}
+	ElseIf(!$?)
+	{
+		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
+		Write-Warning "Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)" "" $Null 0 $False $True
+			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
+			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
+			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
+			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
+			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
+			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)" -Option $htmlBold
+			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
+			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
+			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+		}
+	}
+	Else
+	{
+		Write-Verbose "$(Get-Date -Format G): No results Returned for Processor information"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "No results Returned for Processor information" "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "No results Returned for Processor information"
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "No results Returned for Processor information" -Option $htmlBold
+		}
+	}
+
+	#Get Nics
+	Write-Verbose "$(Get-Date -Format G): `t`t`tNIC information"
+
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 4 0 "Network Interface(s)"
+	}
+	If($Text)
+	{
+		Line 4 "Network Interface(s)"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 4 0 "Network Interface(s)"
+	}
+
+	[bool]$GotNics = $True
+	
+	Try
+	{
+		$Results = Get-WmiObject -computername $RemoteComputerName win32_networkadapterconfiguration
+	}
+	
+	Catch
+	{
+		$Results = $Null
+	}
+
+	If($? -and $Null -ne $Results)
+	{
+		$Nics = $Results | Where-Object {$Null -ne $_.ipaddress}
+		$Results = $Null
+
+		If($Null -eq $Nics) 
+		{ 
+			$GotNics = $False 
+		} 
+		Else 
+		{ 
+			$GotNics = !($Nics.__PROPERTY_COUNT -eq 0) 
+		} 
+	
+		If($GotNics)
+		{
+			ForEach($nic in $nics)
+			{
+				Try
+				{
+					$ThisNic = Get-WmiObject -computername $RemoteComputerName win32_networkadapter | Where-Object {$_.index -eq $nic.index}
+				}
+				
+				Catch 
+				{
+					$ThisNic = $Null
+				}
+				
+				If($? -and $Null -ne $ThisNic)
+				{
+					OutputNicItem $Nic $ThisNic $RemoteComputerName
+				}
+				ElseIf(!$?)
+				{
+					Write-Warning "$(Get-Date): Error retrieving NIC information"
+					Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+					Write-Warning "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+					If($MSWORD -or $PDF)
+					{
+						WriteWordLine 0 2 "Error retrieving NIC information" "" $Null 0 $False $True
+						WriteWordLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" "" $Null 0 $False $True
+						WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
+						WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
+						WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+					}
+					If($Text)
+					{
+						Line 5 "Error retrieving NIC information"
+						Line 5 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+						Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
+						Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
+						Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+					}
+					If($HTML)
+					{
+						WriteHTMLLine 0 2 "Error retrieving NIC information" -Option $htmlBold
+						WriteHTMLLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" -Option $htmlBold
+						WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
+						WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
+						WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+					}
+				}
+				Else
+				{
+					Write-Verbose "$(Get-Date -Format G): No results Returned for NIC information"
+					If($MSWORD -or $PDF)
+					{
+						WriteWordLine 0 2 "No results Returned for NIC information" "" $Null 0 $False $True
+					}
+					If($Text)
+					{
+						Line 4 "No results Returned for NIC information"
+					}
+					If($HTML)
+					{
+						WriteHTMLLine 0 2 "No results Returned for NIC information" -Option $htmlBold
+					}
+				}
+			}
+		}	
+	}
+	ElseIf(!$?)
+	{
+		Write-Warning "$(Get-Date): Error retrieving NIC configuration information"
+		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+		Write-Warning "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "Error retrieving NIC configuration information" "" $Null 0 $False $True
+			WriteWordLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" "" $Null 0 $False $True
+			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
+			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
+			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "Error retrieving NIC configuration information"
+			Line 5 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
+			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
+			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "Error retrieving NIC configuration information" -Option $htmlBold
+			WriteHTMLLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" -Option $htmlBold
+			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
+			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
+			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+		}
+	}
+	Else
+	{
+		Write-Verbose "$(Get-Date -Format G): No results Returned for NIC configuration information"
+		If($MSWORD -or $PDF)
+		{
+			WriteWordLine 0 2 "No results Returned for NIC configuration information" "" $Null 0 $False $True
+		}
+		If($Text)
+		{
+			Line 5 "No results Returned for NIC configuration information"
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 2 "No results Returned for NIC configuration information" -Option $htmlBold
+		}
+	}
+	
+	If($MSWORD -or $PDF)
+	{
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 0 ""
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 0 0 ""
 	}
 }
 
-Function DeviceStatus
+Function OutputComputerItem
 {
-	Param($xDevice)
-
-	If($Null -eq $xDevice -or $xDevice.status -eq "" -or $xDevice.status -eq "0")
+	Param([object]$Item, [string]$OS, [string]$RemoteComputerName)
+	
+	#get computer's power plan
+	#https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/get-the-active-power-plan-of-multiple-servers-with-powershell/ba-p/370429
+	
+	try 
 	{
-		Line 3 "Target device inactive"
+
+		$PowerPlan = (Get-WmiObject -ComputerName $RemoteComputerName -Class Win32_PowerPlan -Namespace "root\cimv2\power" |
+			Where-Object {$_.IsActive -eq $true} |
+			Select-Object @{Name = "PowerPlan"; Expression = {$_.ElementName}}).PowerPlan
+	}
+
+	catch 
+	{
+
+		$PowerPlan = $_.Exception
+
+	}	
+	
+	If($MSWord -or $PDF)
+	{
+		$ItemInformation = New-Object System.Collections.ArrayList
+		$ItemInformation.Add(@{ Data = "Manufacturer"; Value = $Item.manufacturer; }) > $Null
+		$ItemInformation.Add(@{ Data = "Model"; Value = $Item.model; }) > $Null
+		$ItemInformation.Add(@{ Data = "Domain"; Value = $Item.domain; }) > $Null
+		$ItemInformation.Add(@{ Data = "Operating System"; Value = $OS; }) > $Null
+		$ItemInformation.Add(@{ Data = "Power Plan"; Value = $PowerPlan; }) > $Null
+		$ItemInformation.Add(@{ Data = "Total Ram"; Value = "$($Item.totalphysicalram) GB"; }) > $Null
+		$ItemInformation.Add(@{ Data = "Physical Processors (sockets)"; Value = $Item.NumberOfProcessors; }) > $Null
+		$ItemInformation.Add(@{ Data = "Logical Processors (cores w/HT)"; Value = $Item.NumberOfLogicalProcessors; }) > $Null
+		$Table = AddWordTable -Hashtable $ItemInformation `
+		-Columns Data,Value `
+		-List `
+		-Format $wdTableGrid `
+		-AutoFit $wdAutoFitFixed;
+
+		## Set first column format
+		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		## IB - set column widths without recursion
+		$Table.Columns.Item(1).Width = 150;
+		$Table.Columns.Item(2).Width = 200;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustNone)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 5 "Manufacturer`t`t`t: " $Item.manufacturer
+		Line 5 "Model`t`t`t`t: " $Item.model
+		Line 5 "Domain`t`t`t`t: " $Item.domain
+		Line 5 "Operating System`t`t: " $OS
+		Line 5 "Power Plan`t`t`t: " $PowerPlan
+		Line 5 "Total Ram`t`t`t: $($Item.totalphysicalram) GB"
+		Line 5 "Physical Processors (sockets)`t: " $Item.NumberOfProcessors
+		Line 5 "Logical Processors (cores w/HT)`t: " $Item.NumberOfLogicalProcessors
+		Line 5 ""
+	}
+	If($HTML)
+	{
+		$rowdata = @()
+		$columnHeaders = @("Manufacturer",($htmlsilver -bor $htmlBold),$Item.manufacturer,$htmlwhite)
+		$rowdata += @(,('Model',($htmlsilver -bor $htmlBold),$Item.model,$htmlwhite))
+		$rowdata += @(,('Domain',($htmlsilver -bor $htmlBold),$Item.domain,$htmlwhite))
+		$rowdata += @(,('Operating System',($htmlsilver -bor $htmlBold),$OS,$htmlwhite))
+		$rowdata += @(,('Power Plan',($htmlsilver -bor $htmlBold),$PowerPlan,$htmlwhite))
+		$rowdata += @(,('Total Ram',($htmlsilver -bor $htmlBold),"$($Item.totalphysicalram) GB",$htmlwhite))
+		$rowdata += @(,('Physical Processors (sockets)',($htmlsilver -bor $htmlBold),$Item.NumberOfProcessors,$htmlwhite))
+		$rowdata += @(,('Logical Processors (cores w/HT)',($htmlsilver -bor $htmlBold),$Item.NumberOfLogicalProcessors,$htmlwhite))
+
+		$msg = ""
+		$columnWidths = @("150px","200px")
+		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
+		#WriteHTMLLine 0 0 " "
+	}
+}
+
+Function OutputDriveItem
+{
+	Param([object]$Drive)
+	
+	$xDriveType = ""
+	Switch ($drive.drivetype)
+	{
+		0	{$xDriveType = "Unknown"; Break}
+		1	{$xDriveType = "No Root Directory"; Break}
+		2	{$xDriveType = "Removable Disk"; Break}
+		3	{$xDriveType = "Local Disk"; Break}
+		4	{$xDriveType = "Network Drive"; Break}
+		5	{$xDriveType = "Compact Disc"; Break}
+		6	{$xDriveType = "RAM Disk"; Break}
+		Default {$xDriveType = "Unknown"; Break}
+	}
+	
+	$xVolumeDirty = ""
+	If(![String]::IsNullOrEmpty($drive.volumedirty))
+	{
+		If($drive.volumedirty)
+		{
+			$xVolumeDirty = "Yes"
+		}
+		Else
+		{
+			$xVolumeDirty = "No"
+		}
+	}
+
+	If($MSWORD -or $PDF)
+	{
+		$DriveInformation = New-Object System.Collections.ArrayList
+		$DriveInformation.Add(@{ Data = "Caption"; Value = $Drive.caption; }) > $Null
+		$DriveInformation.Add(@{ Data = "Size"; Value = "$($drive.drivesize) GB"; }) > $Null
+		If(![String]::IsNullOrEmpty($drive.filesystem))
+		{
+			$DriveInformation.Add(@{ Data = "File System"; Value = $Drive.filesystem; }) > $Null
+		}
+		$DriveInformation.Add(@{ Data = "Free Space"; Value = "$($drive.drivefreespace) GB"; }) > $Null
+		If(![String]::IsNullOrEmpty($drive.volumename))
+		{
+			$DriveInformation.Add(@{ Data = "Volume Name"; Value = $Drive.volumename; }) > $Null
+		}
+		If(![String]::IsNullOrEmpty($drive.volumedirty))
+		{
+			$DriveInformation.Add(@{ Data = "Volume is Dirty"; Value = $xVolumeDirty; }) > $Null
+		}
+		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
+		{
+			$DriveInformation.Add(@{ Data = "Volume Serial Number"; Value = $Drive.volumeserialnumber; }) > $Null
+		}
+		$DriveInformation.Add(@{ Data = "Drive Type"; Value = $xDriveType; }) > $Null
+		$Table = AddWordTable -Hashtable $DriveInformation `
+		-Columns Data,Value `
+		-List `
+		-Format $wdTableGrid `
+		-AutoFit $wdAutoFitFixed;
+
+		## Set first column format
+		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells `
+		-Bold `
+		-BackgroundColor $wdColorGray15;
+
+		## IB - set column widths without recursion
+		$Table.Columns.Item(1).Width = 150;
+		$Table.Columns.Item(2).Width = 200;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		WriteWordLine 0 2 ""
+	}
+	If($Text)
+	{
+		Line 5 "Caption`t`t: " $drive.caption
+		Line 5 "Size`t`t: $($drive.drivesize) GB"
+		If(![String]::IsNullOrEmpty($drive.filesystem))
+		{
+			Line 5 "File System`t: " $drive.filesystem
+		}
+		Line 5 "Free Space`t: $($drive.drivefreespace) GB"
+		If(![String]::IsNullOrEmpty($drive.volumename))
+		{
+			Line 5 "Volume Name`t: " $drive.volumename
+		}
+		If(![String]::IsNullOrEmpty($drive.volumedirty))
+		{
+			Line 5 "Volume is Dirty`t: " $xVolumeDirty
+		}
+		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
+		{
+			Line 5 "Volume Serial #`t: " $drive.volumeserialnumber
+		}
+		Line 5 "Drive Type`t: " $xDriveType
+		Line 5 ""
+	}
+	If($HTML)
+	{
+		$rowdata = @()
+		$columnHeaders = @("Caption",($htmlsilver -bor $htmlBold),$Drive.caption,$htmlwhite)
+		$rowdata += @(,('Size',($htmlsilver -bor $htmlBold),"$($drive.drivesize) GB",$htmlwhite))
+
+		If(![String]::IsNullOrEmpty($drive.filesystem))
+		{
+			$rowdata += @(,('File System',($htmlsilver -bor $htmlBold),$Drive.filesystem,$htmlwhite))
+		}
+		$rowdata += @(,('Free Space',($htmlsilver -bor $htmlBold),"$($drive.drivefreespace) GB",$htmlwhite))
+		If(![String]::IsNullOrEmpty($drive.volumename))
+		{
+			$rowdata += @(,('Volume Name',($htmlsilver -bor $htmlBold),$Drive.volumename,$htmlwhite))
+		}
+		If(![String]::IsNullOrEmpty($drive.volumedirty))
+		{
+			$rowdata += @(,('Volume is Dirty',($htmlsilver -bor $htmlBold),$xVolumeDirty,$htmlwhite))
+		}
+		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
+		{
+			$rowdata += @(,('Volume Serial Number',($htmlsilver -bor $htmlBold),$Drive.volumeserialnumber,$htmlwhite))
+		}
+		$rowdata += @(,('Drive Type',($htmlsilver -bor $htmlBold),$xDriveType,$htmlwhite))
+
+		$msg = ""
+		$columnWidths = @("150px","200px")
+		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
+		WriteHTMLLine 0 0 " "
+	}
+}
+
+Function OutputProcessorItem
+{
+	Param([object]$Processor)
+	
+	$xAvailability = ""
+	Switch ($processor.availability)
+	{
+		1	{$xAvailability = "Other"; Break}
+		2	{$xAvailability = "Unknown"; Break}
+		3	{$xAvailability = "Running or Full Power"; Break}
+		4	{$xAvailability = "Warning"; Break}
+		5	{$xAvailability = "In Test"; Break}
+		6	{$xAvailability = "Not Applicable"; Break}
+		7	{$xAvailability = "Power Off"; Break}
+		8	{$xAvailability = "Off Line"; Break}
+		9	{$xAvailability = "Off Duty"; Break}
+		10	{$xAvailability = "Degraded"; Break}
+		11	{$xAvailability = "Not Installed"; Break}
+		12	{$xAvailability = "Install Error"; Break}
+		13	{$xAvailability = "Power Save - Unknown"; Break}
+		14	{$xAvailability = "Power Save - Low Power Mode"; Break}
+		15	{$xAvailability = "Power Save - Standby"; Break}
+		16	{$xAvailability = "Power Cycle"; Break}
+		17	{$xAvailability = "Power Save - Warning"; Break}
+		Default	{$xAvailability = "Unknown"; Break}
+	}
+
+	If($MSWORD -or $PDF)
+	{
+		$ProcessorInformation = New-Object System.Collections.ArrayList
+		$ProcessorInformation.Add(@{ Data = "Name"; Value = $Processor.name; }) > $Null
+		$ProcessorInformation.Add(@{ Data = "Description"; Value = $Processor.description; }) > $Null
+		$ProcessorInformation.Add(@{ Data = "Max Clock Speed"; Value = "$($processor.maxclockspeed) MHz"; }) > $Null
+		If($processor.l2cachesize -gt 0)
+		{
+			$ProcessorInformation.Add(@{ Data = "L2 Cache Size"; Value = "$($processor.l2cachesize) KB"; }) > $Null
+		}
+		If($processor.l3cachesize -gt 0)
+		{
+			$ProcessorInformation.Add(@{ Data = "L3 Cache Size"; Value = "$($processor.l3cachesize) KB"; }) > $Null
+		}
+		If($processor.numberofcores -gt 0)
+		{
+			$ProcessorInformation.Add(@{ Data = "Number of Cores"; Value = $Processor.numberofcores; }) > $Null
+		}
+		If($processor.numberoflogicalprocessors -gt 0)
+		{
+			$ProcessorInformation.Add(@{ Data = "Number of Logical Processors (cores w/HT)"; Value = $Processor.numberoflogicalprocessors; }) > $Null
+		}
+		$ProcessorInformation.Add(@{ Data = "Availability"; Value = $xAvailability; }) > $Null
+		$Table = AddWordTable -Hashtable $ProcessorInformation `
+		-Columns Data,Value `
+		-List `
+		-Format $wdTableGrid `
+		-AutoFit $wdAutoFitFixed;
+
+		## Set first column format
+		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		## IB - set column widths without recursion
+		$Table.Columns.Item(1).Width = 150;
+		$Table.Columns.Item(2).Width = 200;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 5 "Name`t`t`t`t: " $processor.name
+		Line 5 "Description`t`t`t: " $processor.description
+		Line 5 "Max Clock Speed`t`t`t: $($processor.maxclockspeed) MHz"
+		If($processor.l2cachesize -gt 0)
+		{
+			Line 5 "L2 Cache Size`t`t`t: $($processor.l2cachesize) KB"
+		}
+		If($processor.l3cachesize -gt 0)
+		{
+			Line 5 "L3 Cache Size`t`t`t: $($processor.l3cachesize) KB"
+		}
+		If($processor.numberofcores -gt 0)
+		{
+			Line 5 "# of Cores`t`t`t: " $processor.numberofcores
+		}
+		If($processor.numberoflogicalprocessors -gt 0)
+		{
+			Line 5 "# of Logical Procs (cores w/HT)`t: " $processor.numberoflogicalprocessors
+		}
+		Line 5 "Availability`t`t`t: " $xAvailability
+		Line 5 ""
+	}
+	If($HTML)
+	{
+		$rowdata = @()
+		$columnHeaders = @("Name",($htmlsilver -bor $htmlBold),$Processor.name,$htmlwhite)
+		$rowdata += @(,('Description',($htmlsilver -bor $htmlBold),$Processor.description,$htmlwhite))
+
+		$rowdata += @(,('Max Clock Speed',($htmlsilver -bor $htmlBold),"$($processor.maxclockspeed) MHz",$htmlwhite))
+		If($processor.l2cachesize -gt 0)
+		{
+			$rowdata += @(,('L2 Cache Size',($htmlsilver -bor $htmlBold),"$($processor.l2cachesize) KB",$htmlwhite))
+		}
+		If($processor.l3cachesize -gt 0)
+		{
+			$rowdata += @(,('L3 Cache Size',($htmlsilver -bor $htmlBold),"$($processor.l3cachesize) KB",$htmlwhite))
+		}
+		If($processor.numberofcores -gt 0)
+		{
+			$rowdata += @(,('Number of Cores',($htmlsilver -bor $htmlBold),$Processor.numberofcores,$htmlwhite))
+		}
+		If($processor.numberoflogicalprocessors -gt 0)
+		{
+			$rowdata += @(,('Number of Logical Processors (cores w/HT)',($htmlsilver -bor $htmlBold),$Processor.numberoflogicalprocessors,$htmlwhite))
+		}
+		$rowdata += @(,('Availability',($htmlsilver -bor $htmlBold),$xAvailability,$htmlwhite))
+
+		$msg = ""
+		$columnWidths = @("150px","200px")
+		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
+		WriteHTMLLine 0 0 " "
+	}
+}
+
+Function OutputNicItem
+{
+	Param([object]$Nic, [object]$ThisNic, [string]$RemoteComputerName)
+	
+	$powerMgmt = Get-WmiObject -computername $RemoteComputerName MSPower_DeviceEnable -Namespace root\wmi | Where-Object{$_.InstanceName -match [regex]::Escape($ThisNic.PNPDeviceID)}
+
+	If($? -and $Null -ne $powerMgmt)
+	{
+		If($powerMgmt.Enable -eq $True)
+		{
+			$PowerSaving = "Enabled"
+		}
+		Else
+		{
+			$PowerSaving = "Disabled"
+		}
 	}
 	Else
 	{
-		Line 2 "Target device active"
-		Line 3 "IP Address: " $xDevice.ip
-		Line 3 "Server: $($xDevice.serverName)"
-		Line 3 "Server IP: $($xDevice.serverIpConnection)"
-		Line 3 "Server Port: $($xDevice.serverPortConnection)"
-		Line 3 "vDisk: " $xDevice.diskLocatorName
-		Line 3 "vDisk version: " $xDevice.diskVersion
-		Line 3 "vDisk name: " $xDevice.diskFileName
-		Line 3 "vDisk access: " -nonewline
-		Switch ($xDevice.diskVersionAccess)
+        $PowerSaving = "N/A"
+	}
+	
+	$xAvailability = ""
+	Switch ($ThisNic.availability)
+	{
+		1		{$xAvailability = "Other"; Break}
+		2		{$xAvailability = "Unknown"; Break}
+		3		{$xAvailability = "Running or Full Power"; Break}
+		4		{$xAvailability = "Warning"; Break}
+		5		{$xAvailability = "In Test"; Break}
+		6		{$xAvailability = "Not Applicable"; Break}
+		7		{$xAvailability = "Power Off"; Break}
+		8		{$xAvailability = "Off Line"; Break}
+		9		{$xAvailability = "Off Duty"; Break}
+		10		{$xAvailability = "Degraded"; Break}
+		11		{$xAvailability = "Not Installed"; Break}
+		12		{$xAvailability = "Install Error"; Break}
+		13		{$xAvailability = "Power Save - Unknown"; Break}
+		14		{$xAvailability = "Power Save - Low Power Mode"; Break}
+		15		{$xAvailability = "Power Save - Standby"; Break}
+		16		{$xAvailability = "Power Cycle"; Break}
+		17		{$xAvailability = "Power Save - Warning"; Break}
+		Default	{$xAvailability = "Unknown"; Break}
+	}
+
+	#attempt to get Receive Side Scaling setting
+	$RSSEnabled = "N/A"
+	Try
+	{
+		#https://ios.developreference.com/article/10085450/How+do+I+enable+VRSS+(Virtual+Receive+Side+Scaling)+for+a+Windows+VM+without+relying+on+Enable-NetAdapterRSS%3F
+		$RSSEnabled = (Get-WmiObject -ComputerName $RemoteComputerName MSFT_NetAdapterRssSettingData -Namespace "root\StandardCimV2" -ea 0).Enabled
+
+		If($RSSEnabled)
 		{
-			0 {Line 0 "Production"; Break}
-			1 {Line 0 "Test"; Break}
-			2 {Line 0 "Maintenance"; Break}
-			3 {Line 0 "Personal vDisk"; Break}
-			Default {Line 0 "vDisk access type could not be determined: $($xDevice.diskVersionAccess)"; Break}
+			$RSSEnabled = "Enabled"
 		}
-		If($PVSVersion -eq "7")
+		Else
 		{
-			Line 3 "Local write cache disk:$($xDevice.localWriteCacheDiskSize)GB"
-			Line 3 "Boot mode:" -nonewline
-			Switch($xDevice.bdmBoot)
-			{
-				0 {Line 0 "PXE boot"; Break}
-				1 {Line 0 "BDM disk"; Break}
-				Default {Line 0 "Boot mode could not be determined: $($xDevice.bdmBoot)"; Break}
-			}
-		}
-		Switch($xDevice.licenseType)
-		{
-			0 {Line 3 "No License"; Break}
-			1 {Line 3 "Desktop License"; Break}
-			2 {Line 3 "Server License"; Break}
-			5 {Line 3 "OEM SmartClient License"; Break}
-			6 {Line 3 "XenApp License"; Break}
-			7 {Line 3 "XenDesktop License"; Break}
-			Default {Line 0 "Device license type could not be determined: $($xDevice.licenseType)"; Break}
-		}
-		
-		Line 3 "Logging level: " -nonewline
-		Switch ($xDevice.logLevel)
-		{
-			0   {Line 0 "Off"; Break}
-			1   {Line 0 "Fatal"; Break}
-			2   {Line 0 "Error"; Break}
-			3   {Line 0 "Warning"; Break}
-			4   {Line 0 "Info"; Break}
-			5   {Line 0 "Debug"; Break}
-			6   {Line 0 "Trace"; Break}
-			Default {Line 0 "Logging level could not be determined: $($xDevice.logLevel)"; Break}
+			$RSSEnabled = "Disabled"
 		}
 	}
-	Line 0 ""
+	
+	Catch
+	{
+		$RSSEnabled = "Unable to determine for $RemoteComputerName"
+	}
+
+	$xIPAddress = New-Object System.Collections.ArrayList
+	ForEach($IPAddress in $Nic.ipaddress)
+	{
+		$xIPAddress.Add("$($IPAddress)") > $Null
+	}
+
+	$xIPSubnet = New-Object System.Collections.ArrayList
+	ForEach($IPSubnet in $Nic.ipsubnet)
+	{
+		$xIPSubnet.Add("$($IPSubnet)") > $Null
+	}
+
+	If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
+	{
+		$nicdnsdomainsuffixsearchorder = $nic.dnsdomainsuffixsearchorder
+		$xnicdnsdomainsuffixsearchorder = New-Object System.Collections.ArrayList
+		ForEach($DNSDomain in $nicdnsdomainsuffixsearchorder)
+		{
+			$xnicdnsdomainsuffixsearchorder.Add("$($DNSDomain)") > $Null
+		}
+	}
+	
+	If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
+	{
+		$nicdnsserversearchorder = $nic.dnsserversearchorder
+		$xnicdnsserversearchorder = New-Object System.Collections.ArrayList
+		ForEach($DNSServer in $nicdnsserversearchorder)
+		{
+			$xnicdnsserversearchorder.Add("$($DNSServer)") > $Null
+		}
+	}
+
+	$xdnsenabledforwinsresolution = ""
+	If($nic.dnsenabledforwinsresolution)
+	{
+		$xdnsenabledforwinsresolution = "Yes"
+	}
+	Else
+	{
+		$xdnsenabledforwinsresolution = "No"
+	}
+	
+	$xTcpipNetbiosOptions = ""
+	Switch ($nic.TcpipNetbiosOptions)
+	{
+		0	{$xTcpipNetbiosOptions = "Use NetBIOS setting from DHCP Server"; Break}
+		1	{$xTcpipNetbiosOptions = "Enable NetBIOS"; Break}
+		2	{$xTcpipNetbiosOptions = "Disable NetBIOS"; Break}
+		Default	{$xTcpipNetbiosOptions = "Unknown"; Break}
+	}
+	
+	$xwinsenablelmhostslookup = ""
+	If($nic.winsenablelmhostslookup)
+	{
+		$xwinsenablelmhostslookup = "Yes"
+	}
+	Else
+	{
+		$xwinsenablelmhostslookup = "No"
+	}
+
+	If($MSWORD -or $PDF)
+	{
+		$NicInformation = New-Object System.Collections.ArrayList
+		$NicInformation.Add(@{ Data = "Name"; Value = $ThisNic.Name; }) > $Null
+		If($ThisNic.Name -ne $nic.description)
+		{
+			$NicInformation.Add(@{ Data = "Description"; Value = $Nic.description; }) > $Null
+		}
+		$NicInformation.Add(@{ Data = "Connection ID"; Value = $ThisNic.NetConnectionID; }) > $Null
+		If(validObject $Nic Manufacturer)
+		{
+			$NicInformation.Add(@{ Data = "Manufacturer"; Value = $Nic.manufacturer; }) > $Null
+		}
+		$NicInformation.Add(@{ Data = "Availability"; Value = $xAvailability; }) > $Null
+		$NicInformation.Add(@{ Data = "Allow the computer to turn off this device to save power"; Value = $PowerSaving; }) > $Null
+		$NicInformation.Add(@{ Data = "Receive Side Scaling"; Value = $RSSEnabled; }) > $Null
+		$NicInformation.Add(@{ Data = "Physical Address"; Value = $Nic.macaddress; }) > $Null
+		If($xIPAddress.Count -gt 1)
+		{
+			$NicInformation.Add(@{ Data = "IP Address"; Value = $xIPAddress[0]; }) > $Null
+			$NicInformation.Add(@{ Data = "Default Gateway"; Value = $Nic.Defaultipgateway; }) > $Null
+			$NicInformation.Add(@{ Data = "Subnet Mask"; Value = $xIPSubnet[0]; }) > $Null
+			$cnt = -1
+			ForEach($tmp in $xIPAddress)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					$NicInformation.Add(@{ Data = "IP Address"; Value = $tmp; }) > $Null
+					$NicInformation.Add(@{ Data = "Subnet Mask"; Value = $xIPSubnet[$cnt]; }) > $Null
+				}
+			}
+		}
+		Else
+		{
+			$NicInformation.Add(@{ Data = "IP Address"; Value = $xIPAddress; }) > $Null
+			$NicInformation.Add(@{ Data = "Default Gateway"; Value = $Nic.Defaultipgateway; }) > $Null
+			$NicInformation.Add(@{ Data = "Subnet Mask"; Value = $xIPSubnet; }) > $Null
+		}
+		If($nic.dhcpenabled)
+		{
+			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
+			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
+			$NicInformation.Add(@{ Data = "DHCP Enabled"; Value = $Nic.dhcpenabled; }) > $Null
+			$NicInformation.Add(@{ Data = "DHCP Lease Obtained"; Value = $dhcpleaseobtaineddate; }) > $Null
+			$NicInformation.Add(@{ Data = "DHCP Lease Expires"; Value = $dhcpleaseexpiresdate; }) > $Null
+			$NicInformation.Add(@{ Data = "DHCP Server"; Value = $Nic.dhcpserver; }) > $Null
+		}
+		If(![String]::IsNullOrEmpty($nic.dnsdomain))
+		{
+			$NicInformation.Add(@{ Data = "DNS Domain"; Value = $Nic.dnsdomain; }) > $Null
+		}
+		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
+		{
+			$NicInformation.Add(@{ Data = "DNS Search Suffixes"; Value = $xnicdnsdomainsuffixsearchorder[0]; }) > $Null
+			$cnt = -1
+			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					$NicInformation.Add(@{ Data = ""; Value = $tmp; }) > $Null
+				}
+			}
+		}
+		$NicInformation.Add(@{ Data = "DNS WINS Enabled"; Value = $xdnsenabledforwinsresolution; }) > $Null
+		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
+		{
+			$NicInformation.Add(@{ Data = "DNS Servers"; Value = $xnicdnsserversearchorder[0]; }) > $Null
+			$cnt = -1
+			ForEach($tmp in $xnicdnsserversearchorder)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					$NicInformation.Add(@{ Data = ""; Value = $tmp; }) > $Null
+				}
+			}
+		}
+		$NicInformation.Add(@{ Data = "NetBIOS Setting"; Value = $xTcpipNetbiosOptions; }) > $Null
+		$NicInformation.Add(@{ Data = "WINS: Enabled LMHosts"; Value = $xwinsenablelmhostslookup; }) > $Null
+		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
+		{
+			$NicInformation.Add(@{ Data = "Host Lookup File"; Value = $Nic.winshostlookupfile; }) > $Null
+		}
+		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
+		{
+			$NicInformation.Add(@{ Data = "Primary Server"; Value = $Nic.winsprimaryserver; }) > $Null
+		}
+		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
+		{
+			$NicInformation.Add(@{ Data = "Secondary Server"; Value = $Nic.winssecondaryserver; }) > $Null
+		}
+		If(![String]::IsNullOrEmpty($nic.winsscopeid))
+		{
+			$NicInformation.Add(@{ Data = "Scope ID"; Value = $Nic.winsscopeid; }) > $Null
+		}
+		$Table = AddWordTable -Hashtable $NicInformation `
+		-Columns Data,Value `
+		-List `
+		-Format $wdTableGrid `
+		-AutoFit $wdAutoFitFixed;
+
+		## Set first column format
+		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		## IB - set column widths without recursion
+		$Table.Columns.Item(1).Width = 150;
+		$Table.Columns.Item(2).Width = 200;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 5 "Name`t`t`t: " $ThisNic.Name
+		If($ThisNic.Name -ne $nic.description)
+		{
+			Line 5 "Description`t`t: " $nic.description
+		}
+		Line 5 "Connection ID`t`t: " $ThisNic.NetConnectionID
+		If(validObject $Nic Manufacturer)
+		{
+			Line 5 "Manufacturer`t`t: " $Nic.manufacturer
+		}
+		Line 5 "Availability`t`t: " $xAvailability
+		Line 5 "Allow computer to turn "
+		Line 5 "off device to save power: " $PowerSaving
+		Line 5 "Physical Address`t: " $nic.macaddress
+		Line 5 "Receive Side Scaling`t: " $RSSEnabled
+		Line 5 "IP Address`t`t: " $xIPAddress[0]
+		$cnt = -1
+		ForEach($tmp in $xIPAddress)
+		{
+			$cnt++
+			If($cnt -gt 0)
+			{
+				Line 8 "  " $tmp
+			}
+		}
+		Line 5 "Default Gateway`t`t: " $Nic.Defaultipgateway
+		Line 5 "Subnet Mask`t`t: " $xIPSubnet[0]
+		$cnt = -1
+		ForEach($tmp in $xIPSubnet)
+		{
+			$cnt++
+			If($cnt -gt 0)
+			{
+				Line 8 "  " $tmp
+			}
+		}
+		If($nic.dhcpenabled)
+		{
+			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
+			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
+			Line 5 "DHCP Enabled`t`t: " $nic.dhcpenabled
+			Line 5 "DHCP Lease Obtained`t: " $dhcpleaseobtaineddate
+			Line 5 "DHCP Lease Expires`t: " $dhcpleaseexpiresdate
+			Line 5 "DHCP Server`t`t:" $nic.dhcpserver
+		}
+		If(![String]::IsNullOrEmpty($nic.dnsdomain))
+		{
+			Line 5 "DNS Domain`t`t: " $nic.dnsdomain
+		}
+		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
+		{
+			[int]$x = 1
+			Line 5 "DNS Search Suffixes`t: " $xnicdnsdomainsuffixsearchorder[0]
+			$cnt = -1
+			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					Line 8 "  " $tmp
+				}
+			}
+		}
+		Line 5 "DNS WINS Enabled`t: " $xdnsenabledforwinsresolution
+		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
+		{
+			[int]$x = 1
+			Line 5 "DNS Servers`t`t: " $xnicdnsserversearchorder[0]
+			$cnt = -1
+			ForEach($tmp in $xnicdnsserversearchorder)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					Line 8 "  " $tmp
+				}
+			}
+		}
+		Line 5 "NetBIOS Setting`t`t: " $xTcpipNetbiosOptions
+		Line 5 "WINS:"
+		Line 6 "Enabled LMHosts`t: " $xwinsenablelmhostslookup
+		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
+		{
+			Line 6 "Host Lookup File`t: " $nic.winshostlookupfile
+		}
+		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
+		{
+			Line 6 "Primary Server`t: " $nic.winsprimaryserver
+		}
+		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
+		{
+			Line 6 "Secondary Server`t: " $nic.winssecondaryserver
+		}
+		If(![String]::IsNullOrEmpty($nic.winsscopeid))
+		{
+			Line 6 "Scope ID`t`t: " $nic.winsscopeid
+		}
+		Line 0 ""
+	}
+	If($HTML)
+	{
+		$rowdata = @()
+		$columnHeaders = @("Name",($htmlsilver -bor $htmlBold),$ThisNic.Name,$htmlwhite)
+		If($ThisNic.Name -ne $nic.description)
+		{
+			$rowdata += @(,('Description',($htmlsilver -bor $htmlBold),$Nic.description,$htmlwhite))
+		}
+		$rowdata += @(,('Connection ID',($htmlsilver -bor $htmlBold),$ThisNic.NetConnectionID,$htmlwhite))
+		If(validObject $Nic Manufacturer)
+		{
+			$rowdata += @(,('Manufacturer',($htmlsilver -bor $htmlBold),$Nic.manufacturer,$htmlwhite))
+		}
+		$rowdata += @(,('Availability',($htmlsilver -bor $htmlBold),$xAvailability,$htmlwhite))
+		$rowdata += @(,('Allow the computer to turn off this device to save power',($htmlsilver -bor $htmlBold),$PowerSaving,$htmlwhite))
+		$rowdata += @(,('Physical Address',($htmlsilver -bor $htmlBold),$Nic.macaddress,$htmlwhite))
+		$rowdata += @(,('Receive Side Scaling',($htmlsilver -bor $htmlbold),$RSSEnabled,$htmlwhite))
+		$rowdata += @(,('IP Address',($htmlsilver -bor $htmlBold),$xIPAddress[0],$htmlwhite))
+		$cnt = -1
+		ForEach($tmp in $xIPAddress)
+		{
+			$cnt++
+			If($cnt -gt 0)
+			{
+				$rowdata += @(,('IP Address',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+			}
+		}
+		$rowdata += @(,('Default Gateway',($htmlsilver -bor $htmlBold),$Nic.Defaultipgateway[0],$htmlwhite))
+		$rowdata += @(,('Subnet Mask',($htmlsilver -bor $htmlBold),$xIPSubnet[0],$htmlwhite))
+		$cnt = -1
+		ForEach($tmp in $xIPSubnet)
+		{
+			$cnt++
+			If($cnt -gt 0)
+			{
+				$rowdata += @(,('Subnet Mask',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+			}
+		}
+		If($nic.dhcpenabled)
+		{
+			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
+			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
+			$rowdata += @(,('DHCP Enabled',($htmlsilver -bor $htmlBold),$Nic.dhcpenabled,$htmlwhite))
+			$rowdata += @(,('DHCP Lease Obtained',($htmlsilver -bor $htmlBold),$dhcpleaseobtaineddate,$htmlwhite))
+			$rowdata += @(,('DHCP Lease Expires',($htmlsilver -bor $htmlBold),$dhcpleaseexpiresdate,$htmlwhite))
+			$rowdata += @(,('DHCP Server',($htmlsilver -bor $htmlBold),$Nic.dhcpserver,$htmlwhite))
+		}
+		If(![String]::IsNullOrEmpty($nic.dnsdomain))
+		{
+			$rowdata += @(,('DNS Domain',($htmlsilver -bor $htmlBold),$Nic.dnsdomain,$htmlwhite))
+		}
+		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
+		{
+			$rowdata += @(,('DNS Search Suffixes',($htmlsilver -bor $htmlBold),$xnicdnsdomainsuffixsearchorder[0],$htmlwhite))
+			$cnt = -1
+			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					$rowdata += @(,('',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+				}
+			}
+		}
+		$rowdata += @(,('DNS WINS Enabled',($htmlsilver -bor $htmlBold),$xdnsenabledforwinsresolution,$htmlwhite))
+		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
+		{
+			$rowdata += @(,('DNS Servers',($htmlsilver -bor $htmlBold),$xnicdnsserversearchorder[0],$htmlwhite))
+			$cnt = -1
+			ForEach($tmp in $xnicdnsserversearchorder)
+			{
+				$cnt++
+				If($cnt -gt 0)
+				{
+					$rowdata += @(,('',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+				}
+			}
+		}
+		$rowdata += @(,('NetBIOS Setting',($htmlsilver -bor $htmlBold),$xTcpipNetbiosOptions,$htmlwhite))
+		$rowdata += @(,('WINS: Enabled LMHosts',($htmlsilver -bor $htmlBold),$xwinsenablelmhostslookup,$htmlwhite))
+		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
+		{
+			$rowdata += @(,('Host Lookup File',($htmlsilver -bor $htmlBold),$Nic.winshostlookupfile,$htmlwhite))
+		}
+		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
+		{
+			$rowdata += @(,('Primary Server',($htmlsilver -bor $htmlBold),$Nic.winsprimaryserver,$htmlwhite))
+		}
+		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
+		{
+			$rowdata += @(,('Secondary Server',($htmlsilver -bor $htmlBold),$Nic.winssecondaryserver,$htmlwhite))
+		}
+		If(![String]::IsNullOrEmpty($nic.winsscopeid))
+		{
+			$rowdata += @(,('Scope ID',($htmlsilver -bor $htmlBold),$Nic.winsscopeid,$htmlwhite))
+		}
+
+		$msg = ""
+		$columnWidths = @("150px","200px")
+		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
+		WriteHTMLLine 0 0 " "
+	}
+	
+	$obj1 = [PSCustomObject] @{
+		ServerName   = $RemoteComputerName
+		Name         = $ThisNic.Name
+		Manufacturer = $ThisNic.manufacturer
+		PowerMgmt    = $PowerSaving
+		RSS          = $RSSEnabled
+	}
+	$null = $Script:ServerNICItemsToReview.Add($obj1)
+}
+#endregion
+
+Function GetConfigWizardInfo
+{
+	Param([string]$ComputerName)
+	
+	Write-Verbose "$(Get-Date -Format G): `t`t`t`tGather Config Wizard info"
+	$DHCPServicesValue = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "DHCPType" $ComputerName
+	$PXEServiceValue = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "PXEType" $ComputerName
+	
+	$DHCPServices = ""
+	$PXEServices = ""
+
+	Switch ($DHCPServicesValue)
+	{
+		1073741824 {$DHCPServices = "The service that runs on another computer"; Break}
+		0 {$DHCPServices = "Microsoft DHCP"; Break}
+		1 {$DHCPServices = "Provisioning Services BOOTP service"; Break}
+		2 {$DHCPServices = "Other BOOTP or DHCP service"; Break}
+		Default {$DHCPServices = "Unable to determine DHCPServices: $($DHCPServicesValue)"; Break}
+	}
+
+	If($DHCPServicesValue -eq 1073741824)
+	{
+		Switch ($PXEServiceValue)
+		{
+			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
+			1 {$PXEServices = "Provisioning Services PXE service"; Break}	#pvs7
+			0 {$PXEServices = "Provisioning Services PXE service"; Break}	#pvs6
+			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
+		}
+	}
+	ElseIf($DHCPServicesValue -eq 0)
+	{
+		Switch ($PXEServiceValue)
+		{
+			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
+			0 {$PXEServices = "Microsoft DHCP"; Break}
+			1 {$PXEServices = "Provisioning Services PXE service"; Break}
+			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
+		}
+	}
+	ElseIf($DHCPServicesValue -eq 1)
+	{
+		$PXEServices = "N/A"
+	}
+	ElseIf($DHCPServicesValue -eq 2)
+	{
+		Switch ($PXEServiceValue)
+		{
+			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
+			0 {$PXEServices = "Provisioning Services PXE service"; Break}
+			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
+		}
+	}
+
+	$UserAccount1Value = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "Account1" $ComputerName
+	$UserAccount3Value = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "Account3" $ComputerName
+	
+	$UserAccount = ""
+	
+	If([String]::IsNullOrEmpty($UserAccount1Value) -and $UserAccount3Value -eq 1)
+	{
+		$UserAccount = "NetWork Service"
+	}
+	ElseIf([String]::IsNullOrEmpty($UserAccount1Value) -and $UserAccount3Value -eq 0)
+	{
+		$UserAccount = "Local system account"
+	}
+	ElseIf(![String]::IsNullOrEmpty($UserAccount1Value))
+	{
+		$UserAccount = $UserAccount1Value
+	}
+
+	$TFTPOptionValue = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "TFTPSetting" $ComputerName
+	$TFTPOption = ""
+	
+	If($TFTPOptionValue -eq 1)
+	{
+		$TFTPOption = "Yes"
+		$TFTPBootstrapLocation = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Admin" "Bootstrap" $ComputerName
+	}
+	Else
+	{
+		$TFTPOption = "No"
+	}
+
+	$obj1 = [PSCustomObject] @{
+		ServerName        = $ComputerName
+		DHCPServicesValue = $DHCPServicesValue
+		PXEServicesValue  = $PXEServiceValue
+		UserAccount       = $UserAccount
+		TFTPOptionValue   = $TFTPOptionValue
+	}
+	$null = $Script:ConfigWizItems.Add($obj1)
+	
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 3 0 "Configuration Wizard Settings"
+		[System.Collections.Hashtable[]] $ScriptInformation = @()
+		$ScriptInformation += @{ Data = "DHCP Services"; Value = $DHCPServices; }
+		$ScriptInformation += @{ Data = "PXE Services"; Value = $PXEServices; }
+		$ScriptInformation += @{ Data = "User account"; Value = $UserAccount; }
+		$ScriptInformation += @{ Data = "TFTP Option"; Value = $TFTPOption; }
+		If($TFTPOptionValue -eq 1)
+		{
+			$ScriptInformation += @{ Data = "TFTP Bootstrap Location"; Value = $TFTPBootstrapLocation; }
+		}
+		$Table = AddWordTable -Hashtable $ScriptInformation `
+		-Columns Data,Value `
+		-List `
+		-Format $wdTableGrid `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 4 "Configuration Wizard Settings"
+		Line 5 "DHCP Services`t`t: " $DHCPServices
+		Line 5 "PXE Services`t`t: " $PXEServices
+		Line 5 "User account`t`t: " $UserAccount
+		Line 5 "TFTP Option`t`t: " $TFTPOption
+		If($TFTPOptionValue -eq 1)
+		{
+			Line 5 "TFTP Bootstrap Location`t: " $TFTPBootstrapLocation
+		}
+		Line 0 ""
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 3 0 "Configuration Wizard Settings"
+		$rowdata = @()
+		$columnHeaders = @("DHCP Services",($htmlsilver -bor $htmlbold),$DHCPServices,$htmlwhite)
+		$rowdata += @(,('PXE Services',($htmlsilver -bor $htmlbold),$PXEServices,$htmlwhite))
+		$rowdata += @(,('User account',($htmlsilver -bor $htmlbold),$UserAccount,$htmlwhite))
+		$rowdata += @(,('TFTP Option',($htmlsilver -bor $htmlbold),$TFTPOption,$htmlwhite))
+		If($TFTPOptionValue -eq 1)
+		{
+			$rowdata += @(,('TFTP Bootstrap Location',($htmlsilver -bor $htmlbold),$TFTPBootstrapLocation,$htmlwhite))
+		}
+		
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+	}
+}
+
+Function GetDisableTaskOffloadInfo
+{
+	Param([string]$ComputerName)
+	
+	Write-Verbose "$(Get-Date -Format G): `t`t`t`tGather TaskOffload info"
+	$TaskOffloadValue = Get-RegistryValue "HKLM:\SYSTEM\CurrentControlSet\Services\TCPIP\Parameters" "DisableTaskOffload" $ComputerName
+	
+	If($Null -eq $TaskOffloadValue)
+	{
+		$TaskOffloadValue = "Missing"
+	}
+	
+	$obj1 = [PSCustomObject] @{
+		ServerName       = $ComputerName	
+		TaskOffloadValue = $TaskOffloadValue	
+	}
+	$null = $Script:TaskOffloadItems.Add($obj1)
+	
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 3 0 "TaskOffload Settings"
+		[System.Collections.Hashtable[]] $ScriptInformation = @()
+		$ScriptInformation += @{ Data = "Value"; Value = $TaskOffloadValue; }
+		$Table = AddWordTable -Hashtable $ScriptInformation `
+		-Columns Data,Value `
+		-List `
+		-Format $wdTableGrid `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 4 "TaskOffload Settings"
+		Line 5 "Value: " $TaskOffloadValue
+		Line 0 ""
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 3 0 "TaskOffload Settings"
+		$rowdata = @()
+		$columnHeaders = @("Value",($htmlsilver -bor $htmlbold),$TaskOffloadValue,$htmlwhite)
+		
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+	}
 }
 
 Function GetBootstrapInfo
@@ -7008,7 +7180,18 @@ Function GetBootstrapInfo
 	Param([object]$server)
 
 	Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Bootstrap files"
-	Line 2 "Bootstrap settings"
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 3 0 "Bootstrap settings"
+	}
+	If($Text)
+	{
+		Line 2 "Bootstrap settings"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 3 0 "Bootstrap settings"
+	}
 	Write-Verbose "$(Get-Date -Format G): `t`t`t`t`tProcessing Bootstrap files for Server $($server.servername)"
 	#first get all bootstrap files for the server
 	$temp = $server.serverName
@@ -7061,8 +7244,24 @@ Function GetBootstrapInfo
 			}
 			Else
 			{
-				Line 2 "Server Bootstrap information could not be retrieved"
-				Line 2 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 0 2 "Server Bootstrap information could not be retrieved"
+					WriteWordLine 0 2 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+					WriteWordLine 0 0 ""
+				}
+				If($Text)
+				{
+					Line 4 "Server Bootstrap information could not be retrieved"
+					Line 4 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+					Line 0 ""
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 0 2 "Server Bootstrap information could not be retrieved"
+					WriteHTMLLine 0 2 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+					WriteHTMLLine 0 0 ""
+				}
 			}
 		}
 		If($Null -ne $ServerBootstraps)
@@ -7081,98 +7280,435 @@ Function GetBootstrapInfo
 				$null = $Script:BootstrapItems.Add($obj1)
 
 				Write-Verbose "$(Get-Date -Format G): `t`t`t`t`t`tProcessing Bootstrap General Tab"
-				Line 3 "Bootstrap file`t: " $ServerBootstrap.Bootstrapname
-				If($ServerBootstrap.bootserver1_Ip -ne "0.0.0.0")
+
+				If($MSWord -or $PDF)
 				{
-					Line 3 "IP Address`t: " $ServerBootstrap.bootserver1_Ip
-					Line 3 "Subnet Mask`t: " $ServerBootstrap.bootserver1_Netmask
-					Line 3 "Gateway`t`t: " $ServerBootstrap.bootserver1_Gateway
-					Line 3 "Port`t`t: " $ServerBootstrap.bootserver1_Port
+					WriteWordLine 4 0 "Bootstrap file: " $ServerBootstrap.Bootstrapname
+					WriteWordLine 5 0 "General"
+					[System.Collections.Hashtable[]] $ItemsWordTable = @();
+					If( $ServerBootstrap.bootserver1_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver2_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver3_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver4_Ip -eq "0.0.0.0")
+					{
+						WriteWordLine 0 0 "There are no Bootstraps defined"
+					}
+					Else
+					{
+						If($ServerBootstrap.bootserver1_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver1_Ip; 
+								Port = $ServerBootstrap.bootserver1_Port; 
+								SubnetMask = $ServerBootstrap.bootserver1_Netmask; 
+								Gateway = $ServerBootstrap.bootserver1_Gateway;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+							Else
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver1_Ip; 
+								SubnetMask = $ServerBootstrap.bootserver1_Netmask; 
+								Gateway = $ServerBootstrap.bootserver1_Gateway;
+								Port = $ServerBootstrap.bootserver1_Port;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+						}
+						
+						If($ServerBootstrap.bootserver2_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver2_Ip; 
+								Port = $ServerBootstrap.bootserver2_Port; 
+								SubnetMask = $ServerBootstrap.bootserver2_Netmask; 
+								Gateway = $ServerBootstrap.bootserver2_Gateway;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+							Else
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver2_Ip; 
+								SubnetMask = $ServerBootstrap.bootserver2_Netmask; 
+								Gateway = $ServerBootstrap.bootserver2_Gateway;
+								Port = $ServerBootstrap.bootserver2_Port;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+						}
+
+						If($ServerBootstrap.bootserver3_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver3_Ip; 
+								Port = $ServerBootstrap.bootserver3_Port; 
+								SubnetMask = $ServerBootstrap.bootserver3_Netmask; 
+								Gateway = $ServerBootstrap.bootserver3_Gateway;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+							Else
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver3_Ip; 
+								SubnetMask = $ServerBootstrap.bootserver3_Netmask; 
+								Gateway = $ServerBootstrap.bootserver3_Gateway;
+								Port = $ServerBootstrap.bootserver3_Port;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+						}
+						
+						If($ServerBootstrap.bootserver4_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver4_Ip; 
+								Port = $ServerBootstrap.bootserver4_Port; 
+								SubnetMask = $ServerBootstrap.bootserver4_Netmask; 
+								Gateway = $ServerBootstrap.bootserver4_Gateway;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+							Else
+							{
+								$WordTableRowHash = @{ 
+								IPAddress = $ServerBootstrap.bootserver4_Ip; 
+								SubnetMask = $ServerBootstrap.bootserver4_Netmask; 
+								Gateway = $ServerBootstrap.bootserver4_Gateway;
+								Port = $ServerBootstrap.bootserver4_Port;}
+								$ItemsWordTable += $WordTableRowHash;
+							}
+						}
+					}
+
+					If($ItemsWordTable.Count -gt 0)
+					{
+						If($Script:PVSVersion -eq "7")
+						{
+							$Table = AddWordTable -Hashtable $ItemsWordTable `
+							-Columns IPAddress, Port, SubnetMask, Gateway `
+							-Headers "IP Address", "Port", "Subnet Mask", "Gateway" `
+							-AutoFit $wdAutoFitContent;
+						}
+						Else
+						{
+							$Table = AddWordTable -Hashtable $ItemsWordTable `
+							-Columns IPAddress, SubnetMask, Gateway, Port `
+							-Headers "IP Address", "Subnet Mask", "Gateway", "Port" `
+							-AutoFit $wdAutoFitContent;
+						}
+
+						SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+						$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+						FindWordDocumentEnd
+						$Table = $Null
+						$ItemsWordTable = $Null
+						WriteWordLine 0 0 ""
+					}
 				}
-				If($ServerBootstrap.bootserver2_Ip -ne "0.0.0.0")
+				If($Text)
 				{
-					Line 3 "IP Address`t: " $ServerBootstrap.bootserver2_Ip
-					Line 3 "Subnet Mask`t: " $ServerBootstrap.bootserver2_Netmask
-					Line 3 "Gateway`t`t: " $ServerBootstrap.bootserver2_Gateway
-					Line 3 "Port`t`t: " $ServerBootstrap.bootserver2_Port
+					Line 4 "Bootstrap file`t: " $ServerBootstrap.Bootstrapname
+					Line 5 "General"
+					
+					If( $ServerBootstrap.bootserver1_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver2_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver3_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver4_Ip -eq "0.0.0.0")
+					{
+						Line 6 "There are no Bootstraps defined"
+					}
+					Else
+					{
+						If($ServerBootstrap.bootserver1_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver1_Ip
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver1_Port
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver1_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver1_Gateway
+							}
+							Else
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver1_Ip
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver1_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver1_Gateway
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver1_Port
+							}
+						}
+						
+						If($ServerBootstrap.bootserver2_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver2_Ip
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver2_Port
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver2_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver2_Gateway
+							}
+							Else
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver2_Ip
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver2_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver2_Gateway
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver2_Port
+							}
+						}
+						
+						If($ServerBootstrap.bootserver3_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver3_Ip
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver3_Port
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver3_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver3_Gateway
+							}
+							Else
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver3_Ip
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver3_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver3_Gateway
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver3_Port
+							}
+						}
+						
+						If($ServerBootstrap.bootserver4_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver4_Ip
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver4_Port
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver4_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver4_Gateway
+							}
+							Else
+							{
+								Line 6 "IP Address`t: " $ServerBootstrap.bootserver4_Ip
+								Line 6 "Subnet Mask`t: " $ServerBootstrap.bootserver4_Netmask
+								Line 6 "Gateway`t`t: " $ServerBootstrap.bootserver4_Gateway
+								Line 6 "Port`t`t: " $ServerBootstrap.bootserver4_Port
+							}
+						}
+					}
+					Line 0 ""
 				}
-				If($ServerBootstrap.bootserver3_Ip -ne "0.0.0.0")
+				If($HTML)
 				{
-					Line 3 "IP Address`t: " $ServerBootstrap.bootserver3_Ip
-					Line 3 "Subnet Mask`t: " $ServerBootstrap.bootserver3_Netmask
-					Line 3 "Gateway`t`t: " $ServerBootstrap.bootserver3_Gateway
-					Line 3 "Port`t`t: " $ServerBootstrap.bootserver3_Port
+					WriteHTMLLine 4 0 "Bootstrap file: " $ServerBootstrap.Bootstrapname
+					WriteWordLine 0 0 ""
+					$rowdata = @()
+					If( $ServerBootstrap.bootserver1_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver2_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver3_Ip -eq "0.0.0.0" -and
+						$ServerBootstrap.bootserver4_Ip -eq "0.0.0.0")
+					{
+						WriteHTMLLine 0 0 "There are no Bootstraps defined"
+					}
+					Else
+					{
+						If($ServerBootstrap.bootserver1_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver1_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver1_Port,$htmlwhite,
+								$ServerBootstrap.bootserver1_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver1_Gateway,$htmlwhite))
+							}
+							Else
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver1_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver1_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver1_Gateway,$htmlwhite,
+								$ServerBootstrap.bootserver1_Port,$htmlwhite))
+							}
+						}
+						
+						If($ServerBootstrap.bootserver2_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver2_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver2_Port,$htmlwhite,
+								$ServerBootstrap.bootserver2_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver2_Gateway,$htmlwhite))
+							}
+							Else
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver2_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver2_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver2_Gateway,$htmlwhite,
+								$ServerBootstrap.bootserver2_Port,$htmlwhite))
+							}
+						}
+
+						If($ServerBootstrap.bootserver3_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver3_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver3_Port,$htmlwhite,
+								$ServerBootstrap.bootserver3_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver3_Gateway,$htmlwhite))
+							}
+							Else
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver3_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver3_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver3_Gateway,$htmlwhite,
+								$ServerBootstrap.bootserver3_Port,$htmlwhite))
+							}
+						}
+						
+						If($ServerBootstrap.bootserver4_Ip -ne "0.0.0.0")
+						{
+							If($Script:PVSVersion -eq "7")
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver4_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver4_Port,$htmlwhite,
+								$ServerBootstrap.bootserver4_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver4_Gateway,$htmlwhite))
+							}
+							Else
+							{
+								$rowdata += @(,(
+								$ServerBootstrap.bootserver4_Ip,$htmlwhite,
+								$ServerBootstrap.bootserver4_Netmask,$htmlwhite,
+								$ServerBootstrap.bootserver4_Gateway,$htmlwhite,
+								$ServerBootstrap.bootserver4_Port,$htmlwhite))
+							}
+						}
+					}
+
+					If($Script:PVSVersion -eq "7")
+					{
+						$columnHeaders = @(
+						'IP Address',($htmlsilver -bor $htmlbold),
+						'Port',($htmlsilver -bor $htmlbold),
+						'Subnet Mask',($htmlsilver -bor $htmlbold),
+						'Gateway',($htmlsilver -bor $htmlbold))
+					}
+					Else
+					{
+						$columnHeaders = @(
+						'IP Address',($htmlsilver -bor $htmlbold),
+						'Subnet Mask',($htmlsilver -bor $htmlbold),
+						'Gateway',($htmlsilver -bor $htmlbold),
+						'Port',($htmlsilver -bor $htmlbold))
+					}
+						
+					$msg = "General"
+					FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+					WriteHTMLLine 0 0 " "
 				}
-				If($ServerBootstrap.bootserver4_Ip -ne "0.0.0.0")
-				{
-					Line 3 "IP Address`t: " $ServerBootstrap.bootserver4_Ip
-					Line 3 "Subnet Mask`t: " $ServerBootstrap.bootserver4_Netmask
-					Line 3 "Gateway`t`t: " $ServerBootstrap.bootserver4_Gateway
-					Line 3 "Port`t`t: " $ServerBootstrap.bootserver4_Port
-				}
-				Line 0 ""
+
 				Write-Verbose "$(Get-Date -Format G): `t`t`t`t`t`tProcessing Bootstrap Options Tab"
-				Line 3 "Verbose mode`t`t: " -nonewline
+
 				If($ServerBootstrap.verboseMode -eq "1")
 				{
-					Line 0 "Yes"
+					$verboseMode = "Yes"
 				}
 				Else
 				{
-					Line 0 "No"
+					$verboseMode = "No"
 				}
-				Line 3 "Interrupt safe mode`t: " -nonewline
 				If($ServerBootstrap.interruptSafeMode -eq "1")
 				{
-					Line 0 "Yes"
+					$interruptSafeMode = "Yes"
 				}
 				Else
 				{
-					Line 0 "No"
+					$interruptSafeMode = "No"
 				}
-				Line 3 "Advanced Memory Support`t: " -nonewline
 				If($ServerBootstrap.paeMode -eq "1")
 				{
-					Line 0 "Yes"
+					$paeMode = "Yes"
 				}
 				Else
 				{
-					Line 0 "No"
+					$paeMode = "No"
 				}
-				Line 3 "Network recovery method`t: " -nonewline
-				If($ServerBootstrap.bootFromHdOnFail -eq "0")
+				If($ServerBootstrap.bootFromHdOnFail -eq "1")
 				{
-					Line 0 "Restore network connection"
+					$bootFromHdOnFail = "Reboot to Hard Drive after $($ServerBootstrap.recoveryTime) seconds"
 				}
 				Else
 				{
-					Line 0 "Reboot to Hard Drive after $($ServerBootstrap.recoveryTime) seconds"
+					$bootFromHdOnFail = "Restore network connection"
 				}
-				Line 3 "Login polling timeout`t: " -nonewline
-				If($ServerBootstrap.pollingTimeout -eq "")
+
+				If($MSWord -or $PDF)
 				{
-					Line 0 "5000 (milliseconds)"
+					WriteWordLine 5 0 "Options"
+					[System.Collections.Hashtable[]] $ScriptInformation = @()
+					$ScriptInformation += @{ Data = "Verbose mode"; Value = $verboseMode; }
+					$ScriptInformation += @{ Data = "Interrupt safe mode"; Value = $interruptSafeMode; }
+					$ScriptInformation += @{ Data = "Advanced Memory Support"; Value = $paeMode; }
+					$ScriptInformation += @{ Data = "Network recovery method"; Value = $bootFromHdOnFail; }
+					$ScriptInformation += @{ Data = "Timeouts"; Value = ""; }
+					$ScriptInformation += @{ Data = "     Login polling timeout"; Value = "$($ServerBootstrap.pollingTimeout) (milliseconds)"; }
+					$ScriptInformation += @{ Data = "     Login general timeout"; Value = "$($ServerBootstrap.generalTimeout) (milliseconds)"; }
+					$Table = AddWordTable -Hashtable $ScriptInformation `
+					-Columns Data,Value `
+					-List `
+					-Format $wdTableGrid `
+					-AutoFit $wdAutoFitContent;
+
+					SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+					$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+					FindWordDocumentEnd
+					$Table = $Null
+					WriteWordLine 0 0 ""
 				}
-				Else
+				If($Text)
 				{
-					Line 0 "$($ServerBootstrap.pollingTimeout) (milliseconds)"
+					Line 5 "Options"
+					Line 6 "Verbose mode`t`t`t: " $verboseMode
+					Line 6 "Interrupt safe mode`t`t: " $interruptSafeMode
+					Line 6 "Advanced Memory Support`t`t: " $paeMode
+					Line 6 "Network recovery method`t`t: " $bootFromHdOnFail
+					Line 6 "Timeouts"
+					Line 7 "Login polling timeout`t: " "$($ServerBootstrap.pollingTimeout) (milliseconds)"
+					Line 7 "Login general timeout`t: " "$($ServerBootstrap.generalTimeout) (milliseconds)"
+					Line 0 ""
 				}
-				Line 3 "Login general timeout`t: " -nonewline
-				If($ServerBootstrap.generalTimeout -eq "")
+				If($HTML)
 				{
-					Line 0 "5000 (milliseconds)"
+					$rowdata = @()
+					$columnHeaders = @("Verbose mode",($htmlsilver -bor $htmlbold),$verboseMode,$htmlwhite)
+					$rowdata += @(,('Interrupt safe mode',($htmlsilver -bor $htmlbold),$interruptSafeMode,$htmlwhite))
+					$rowdata += @(,('Advanced Memory Support',($htmlsilver -bor $htmlbold),$paeMode,$htmlwhite))
+					$rowdata += @(,('Network recovery method',($htmlsilver -bor $htmlbold),$bootFromHdOnFail,$htmlwhite))
+					$rowdata += @(,('Timeouts',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+					$rowdata += @(,('     Login polling timeout',($htmlsilver -bor $htmlbold),"$($ServerBootstrap.pollingTimeout) (milliseconds)",$htmlwhite))
+					$rowdata += @(,('     Login general timeout',($htmlsilver -bor $htmlbold),"$($ServerBootstrap.generalTimeout) (milliseconds)",$htmlwhite))
+					
+					$msg = "Options"
+					FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+					WriteHTMLLine 0 0 " "
 				}
-				Else
-				{
-					Line 0 "$($ServerBootstrap.generalTimeout) (milliseconds)"
-				}
-				Line 0 ""
 			}
 		}
 	}
 	Else
 	{
-		Line 2 "No Bootstrap names available"
+		Line 4 "No Bootstrap names available"
 	}
 	Line 0 ""
 }
@@ -7227,11 +7763,262 @@ Function GetPVSServiceInfo
 			$null = $Script:PVSServiceItems.Add($obj1)
 		}
 	}
+}
+
+Function GetBadStreamingIPAddresses
+{
+	Param([string]$ComputerName)
+	#function updated by Andrew Williamson @ Fujitsu Services to handle servers with multiple NICs
+	#further optimization by Michael B. Smith
+
+	#loop through the configured streaming ip address and compare to the physical configured ip addresses
+	#if a streaming ip address is not in the list of physical ip addresses, it is a bad streaming ip address
+	ForEach ($Stream in ($Script:StreamingIPAddresses | Where-Object {$_.Servername -eq $ComputerName})) {
+		$exists = $false
+		:outerLoop ForEach ($ServerNIC in $Script:NICIPAddresses.Item($ComputerName)) 
+		{
+			ForEach ($IP in $ServerNIC) 
+			{ 
+				# there could be more than one IP
+				If ($Stream.IPAddress -eq $IP) 
+				{
+					$Exists = $true
+					break :outerLoop
+				}
+			}
+		}
+		if (!$exists) 
+		{
+			$obj1 = [PSCustomObject] @{
+				ServerName = $ComputerName			
+				IPAddress  = $Stream.IPAddress			
+			}
+			$null = $Script:BadIPs.Add($obj1)
+		}
+	}
+}
+
+Function Get-RegKeyToObject 
+{
+	#function contributed by Andrew Williamson @ Fujitsu Services
+    param([string]$RegPath,
+    [string]$RegKey,
+    [string]$ComputerName)
+	
+    $val = Get-RegistryValue $RegPath $RegKey $ComputerName
+	
+    If($Null -eq $val) 
+	{
+        $tmp = "Not set"
+    } 
+	Else 
+	{
+	    $tmp = $val
+    }
+	
+	$obj1 = [PSCustomObject] @{
+		ServerName = $ComputerName	
+		RegKey     = $RegPath	
+		RegValue   = $RegKey	
+		Value      = $tmp	
+	}
+	$null = $Script:MiscRegistryItems.Add($obj1)
+}
+
+Function GetMiscRegistryKeys
+{
+	Param([string]$ComputerName)
+	
+	#look for the following registry keys and values on PVS servers
+		
+	#Registry Key                                                      Registry Value                 
+	#=================================================================================================
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        AutoUpdateUserCache            
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        LoggingLevel 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        SkipBootMenu                   
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        UseManagementIpInCatalog       
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        UseTemplateBootOrder           
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    IPv4Address                    
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    PortBase 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    PortCount 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager                GeneralInetAddr                
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             IPCTraceFile 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             IPCTraceState 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             PortOffset 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier               IPCTraceFile 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier               IPCTraceState 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier               PortOffset 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\SoapServer             PortOffset 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          IPCTraceFile 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          IPCTraceState 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          PortOffset 
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          SkipBootMenu                   
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          SkipRIMS                       
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          SkipRIMSforPrivate             
+	#HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters       WcHDNoIntermediateBuffering    
+	#HKLM:\SYSTEM\CurrentControlSet\services\BNIStack\Parameters       WcRamConfiguration             
+	#HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters       WcWarningIncrement             
+	#HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters       WcWarningPercent               
+	#HKLM:\SYSTEM\CurrentControlSet\Services\BNNS\Parameters           EnableOffload                  
+	#HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters         InitTimeoutSec           
+	#HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters         MaxBindRetry             
+	#HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters         InitTimeoutSec           
+	#HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters         MaxBindRetry      
+	
+	Write-Verbose "$(Get-Date -Format G): `t`t`t`tGather Misc Registry Key data"
+
+	#https://docs.citrix.com/en-us/provisioning/7-1/pvs-readme-7/7-fixed-issues.html
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "AutoUpdateUserCache" $ComputerName
+
+	#https://support.citrix.com/article/CTX135299
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "SkipBootMenu" $ComputerName
+
+	#https://support.citrix.com/article/CTX142613
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "UseManagementIpInCatalog" $ComputerName
+
+	#https://support.citrix.com/article/CTX142613
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "UseTemplateBootOrder" $ComputerName
+
+	#https://support.citrix.com/article/CTX200196
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC" "UseTemplateBootOrder" $ComputerName
+
+	#https://support.citrix.com/article/CTX200196
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager" "UseTemplateBootOrder" $ComputerName
+
+	#https://support.citrix.com/article/CTX135299
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "UseTemplateBootOrder" $ComputerName
+
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "SkipRIMS" $ComputerName
+
+	#https://support.citrix.com/article/CTX200233
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "SkipRIMSforPrivate" $ComputerName
+
+	#https://support.citrix.com/article/CTX126042
+	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters" "WcHDNoIntermediateBuffering" $ComputerName
+
+	#https://support.citrix.com/article/CTX139849
+	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\services\BNIStack\Parameters" "WcRamConfiguration" $ComputerName
+
+	#https://docs.citrix.com/en-us/provisioning/7-1/pvs-readme-7/7-fixed-issues.html
+	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters" "WcWarningIncrement" $ComputerName
+
+	#https://docs.citrix.com/en-us/provisioning/7-1/pvs-readme-7/7-fixed-issues.html
+	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters" "WcWarningPercent" $ComputerName
+
+	#https://support.citrix.com/article/CTX117374
+	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNNS\Parameters" "EnableOffload" $ComputerName
+	
+	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
+	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters" "InitTimeoutSec" $ComputerName
+	
+	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
+	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters" "MaxBindRetry" $ComputerName
+
+	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
+	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters" "InitTimeoutSec" $ComputerName
+	
+	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
+	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters" "MaxBindRetry" $ComputerName
+
+	#regkeys recommended by Andrew Williamson @ Fujitsu Services
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "LoggingLevel" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC" "PortBase" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC" "PortCount" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon" "IPCTraceFile" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon" "IPCTraceState" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon" "PortOffset" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier" "IPCTraceFile" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier" "IPCTraceState" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier" "PortOffset" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\SoapServer" "PortOffset" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "IPCTraceFile" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "IPCTraceState" $ComputerName
+    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "PortOffset" $ComputerName
+}
+
+Function GetMicrosoftHotfixes 
+{
+	Param([string]$ComputerName)
+	
+	#added V1.16 get installed Microsoft Hotfixes and Updates
+	Write-Verbose "$(Get-Date -Format G): `t`t`t`tRetrieving Microsoft hotfixes and updates"
+	[bool]$GotMSHotfixes = $True
+	
+	Try
+	{
+		$results = Get-HotFix -computername $ComputerName | Select-Object CSName,Caption,Description,HotFixID,InstalledBy,InstalledOn
+		$MSInstalledHotfixes = $results | Sort-Object HotFixID
+		$results = $Null
+	}
+	
+	Catch
+	{
+		$GotMSHotfixes = $False
+	}
+
+	If($GotMSHotfixes -eq $False)
+	{
+		#do nothing
+	}
 	Else
 	{
-		Line 2 "No PVS services found for $($ComputerName)"
+		ForEach($Hotfix in $MSInstalledHotfixes)
+		{
+			$obj1 = [PSCustomObject] @{
+				HotFixID	= $Hotfix.HotFixID			
+				ServerName	= $Hotfix.CSName			
+				Caption		= $Hotfix.Caption			
+				Description	= $Hotfix.Description			
+				InstalledBy	= $Hotfix.InstalledBy			
+				InstalledOn	= $Hotfix.InstalledOn			
+			}
+			$null = $Script:MSHotfixes.Add($obj1)
+		}
 	}
-	Line 0 ""
+}
+
+Function GetInstalledRolesAndFeatures
+{
+	Param([string]$ComputerName)
+	
+	#don't do for server 2008 r2 because get-windowsfeature doesn't support -computername
+	If($Script:RunningOS -like "*2008*")
+	{
+		#don't do anything
+	}
+	Else
+	{
+		#added V1.16 get Windows installed Roles and Features
+		Write-Verbose "$(Get-Date -Format G): `t`t`t`tRetrieving Windows installed Roles and Features"
+		[bool]$GotWinComponents = $True
+		
+		$results = Get-WindowsFeature -ComputerName $ComputerName -EA 0 4> $Null
+		
+		If(!$?)
+		{
+			$GotWinComponents = $False
+		}
+		
+		$WinComponents = $results | Where-Object Installed | Select-Object DisplayName,Name,FeatureType | Sort-Object DisplayName 
+		
+		If($GotWinComponents -eq $False)
+		{
+			#do nothing
+		}
+		Else
+		{
+			ForEach($Component in $WinComponents)
+			{
+				$obj1 = [PSCustomObject] @{
+					DisplayName	= $Component.DisplayName			
+					Name		= $Component.Name			
+					ServerName	= $ComputerName			
+					FeatureType	= $Component.FeatureType			
+				}
+				$null = $Script:WinInstalledComponents.Add($obj1)
+			}
+		}
+	}
 }
 
 Function GetPVSProcessInfo
@@ -7384,81 +8171,6 @@ Function GetPVSProcessInfo
 	}
 }
 
-Function GetBadStreamingIPAddresses
-{
-	Param([string]$ComputerName)
-	#function updated by Andrew Williamson @ Fujitsu Services to handle servers with multiple NICs
-	#further optimization by Michael B. Smith
-
-	#loop through the configured streaming ip address and compare to the physical configured ip addresses
-	#if a streaming ip address is not in the list of physical ip addresses, it is a bad streaming ip address
-	ForEach ($Stream in ($Script:StreamingIPAddresses | Where-Object {$_.Servername -eq $ComputerName})) {
-		$exists = $false
-		:outerLoop ForEach ($ServerNIC in $Script:NICIPAddresses.Item($ComputerName)) 
-		{
-			ForEach ($IP in $ServerNIC) 
-			{ 
-				# there could be more than one IP
-				If ($Stream.IPAddress -eq $IP) 
-				{
-					$Exists = $true
-					break :outerLoop
-				}
-			}
-		}
-		if (!$exists) 
-		{
-			$obj1 = [PSCustomObject] @{
-				ServerName = $ComputerName			
-				IPAddress  = $Stream.IPAddress			
-			}
-			$null = $Script:BadIPs.Add($obj1)
-		}
-	}
-}
-
-Function GetMicrosoftHotfixes 
-{
-	Param([string]$ComputerName)
-	
-	#added V1.16 get installed Microsoft Hotfixes and Updates
-	Write-Verbose "$(Get-Date -Format G): `t`t`t`tRetrieving Microsoft hotfixes and updates"
-	[bool]$GotMSHotfixes = $True
-	
-	Try
-	{
-		$results = Get-HotFix -computername $ComputerName | Select-Object CSName,Caption,Description,HotFixID,InstalledBy,InstalledOn
-		$MSInstalledHotfixes = $results | Sort-Object HotFixID
-		$results = $Null
-	}
-	
-	Catch
-	{
-		$GotMSHotfixes = $False
-	}
-
-	If($GotMSHotfixes -eq $False)
-	{
-		Line 1 "No installed Microsoft hotfixes or updates were found"
-		Line 0 ""
-	}
-	Else
-	{
-		ForEach($Hotfix in $MSInstalledHotfixes)
-		{
-			$obj1 = [PSCustomObject] @{
-				HotFixID	= $Hotfix.HotFixID			
-				ServerName	= $Hotfix.CSName			
-				Caption		= $Hotfix.Caption			
-				Description	= $Hotfix.Description			
-				InstalledBy	= $Hotfix.InstalledBy			
-				InstalledOn	= $Hotfix.InstalledOn			
-			}
-			$null = $Script:MSHotfixes.Add($obj1)
-		}
-	}
-}
-
 Function GetCitrixInstalledComponents 
 {
 	Param([string]$ComputerName)
@@ -7541,133 +8253,261 @@ Function GetCitrixInstalledComponents
 			$null = $Script:CtxInstalledComponents.Add($obj1)
 		}
 	}
-	Else
-	{
-		Line 1 "No Citrix Installed Components were found"
-	}
 }
 
 #region Process vDisks in Farm functions
 Function ProcessvDisksinFarm
 {
 	#process all vDisks in site
-	Write-Verbose "$(Get-Date -Format G): `t`tProcessing all vDisks in site"
+	Write-Verbose "$(Get-Date -Format G): `t`tProcessing all vDisks in the Farm"
 	[int]$NumberofvDisks = 0
 	$GetWhat = "DiskInfo"
 	$GetParam = ""
 	$ErrorTxt = "Disk information"
 	$Disks = BuildPVSObject $GetWhat $GetParam $ErrorTxt
 
-	Line 0 "vDisks in Farm"
+	If($MSWord -or $PDF)
+	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "vDisk Pool"
+	}
+	If($Text)
+	{
+		Line 0 "vDisk Pool"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 2 0 "vDisk Pool"
+	}
+	
 	If($Null -ne $Disks)
 	{
 		ForEach($Disk in $Disks)
 		{
 			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing vDisk $($Disk.diskLocatorName)"
-			Line 1 $Disk.diskLocatorName
-			#PVS 6.x or 7.x
 			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing vDisk Properties"
 			Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing General Tab"
-			Line 2 "Site`t`t`t`t`t`t: " $Disk.siteName
-			Line 2 "Store`t`t`t`t`t`t: " $Disk.storeName
-			Line 2 "Filename`t`t`t`t`t: " $Disk.diskLocatorName
-			Line 2 "Size`t`t`t`t`t`t: " (($Disk.diskSize/1024)/1024)/1024 -nonewline
-			Line 0 " MB"
-			Line 2 "VHD block size`t`t`t`t`t: " $Disk.vhdBlockSize -nonewline
-			Line 0 " KB"
-			Line 2 "Access mode`t`t`t`t`t: " -nonewline
-			If($Disk.writeCacheType -eq "0")
+
+			If($Disk.writeCacheType -eq 0)
 			{
-				Line 0 "Private Image (single device, read/write access)"
+				$accessMode = "Private Image (single device, read/write access)"
 			}
 			Else
 			{
-				Line 0 "Standard Image (multi-device, read-only access)"
-				Line 2 "Cache type: " -nonewline
+				$accessMode = "Standard Image (multi-device, read-only access)"
 				Switch ($Disk.writeCacheType)
 				{
-					0   {Line 0 "Private Image"; Break}
-					1   {
-							Line 0 "Cache on server"
-							
-							$obj1 = [PSCustomObject] @{
-								StoreName = $Disk.storeName								
-								SiteName  = $Disk.siteName								
-								vDiskName = $Disk.diskLocatorName								
+					0   	{$writeCacheType = "Private Image"; Break}
+					1   	{$writeCacheType = "Cache on server"
+								
+								$obj1 = [PSCustomObject] @{
+									StoreName = $Disk.storeName								
+									SiteName  = $Disk.siteName								
+									vDiskName = $Disk.diskLocatorName								
+								}
+								$null = $Script:CacheOnServer.Add($obj1)
+								Break
 							}
-							$null = $Script:CacheOnServer.Add($obj1)
-							Break
-						}
-					3   {
-						Line 0 "Cache in device RAM"
-						Line 2 "Cache Size: $($Disk.writeCacheSize) MBs"; Break
-						}
-					4   {Line 0 "Cache on device's hard disk"; Break}
-					6   {Line 0 "RAM Disk"; Break}
-					7   {Line 0 "Difference Disk"; Break}
-					8  	{Line 0 "Cache on device hard drive persisted (NT 6.1 and later)"; Break}
-					9  	{Line 0 "Cache in device RAM with overflow on hard disk"; Break}
-					10 	{Line 0 "Private Image with Asynchronous IO"; Break} #added 1811
-					11 	{Line 0 "Cache on server, persistent with Asynchronous IO"; Break} #added 1811
-					12 	{Line 0 "Cache in device RAM with overflow on hard disk with Asynchronous IO"; Break} #added 1811
-					Default {Line 0 "Cache type could not be determined: $($Disk.writeCacheType)"; Break}
+					3   	{$writeCacheType = "Cache in device RAM"; Break}
+					4   	{$writeCacheType = "Cache on device hard disk"; Break}
+					6   	{$writeCacheType = "Device RAM Disk"; Break}
+					7   	{$writeCacheType = "Cache on server, persistent"; Break}
+					8   	{$writeCacheType = "Cache on device hard drive persisted (NT 6.1 and later)"; Break}
+					9   	{$writeCacheType = "Cache in device RAM with overflow on hard disk"; Break}
+					10   	{$writeCacheType = "Private Image with Asynchronous IO"; Break} #added 1811
+					11   	{$writeCacheType = "Cache on server, persistent with Asynchronous IO"; Break} #added 1811
+					12   	{$writeCacheType = "Cache in device RAM with overflow on hard disk with Asynchronous IO"; Break} #added 1811
+					Default {$writeCacheType = "Cache type could not be determined: $($Disk.writeCacheType)"; Break}
 				}
 			}
-			If(![String]::IsNullOrEmpty($Disk.menuText))
-			{
-				Line 2 "BIOS boot menu text`t`t`t`t: " $Disk.menuText
-			}
-			Line 2 "Enable AD machine account password management`t: " -nonewline
 			If($Disk.adPasswordEnabled -eq "1")
 			{
-				Line 0 "Yes"
+				$adPasswordEnabled = "Yes"
 			}
 			Else
 			{
-				Line 0 "No"
+				$adPasswordEnabled = "No"
 			}
-			
-			Line 2 "Enable printer management`t`t`t: " -nonewline
 			If($Disk.printerManagementEnabled -eq "1")
 			{
-				Line 0 "Yes"
+				$printerManagementEnabled = "Yes"
 			}
 			Else
 			{
-				Line 0 "No"
+				$printerManagementEnabled = "No"
 			}
-			Line 2 "Enable streaming of this vDisk`t`t`t: " -nonewline
 			If($Disk.Enabled -eq "1")
 			{
-				Line 0 "Yes"
-				If($Disk.deviceCount -gt 0)
-				{
-					$NumberofvDisks++
-				}
+				$Enabled = "Yes"
 			}
 			Else
 			{
-				Line 0 "No"
+				$Enabled = "No"
 			}
-			Line 2 "Microsoft license type`t`t`t`t: " -nonewline
-			Switch ($Disk.licenseMode)
+			If($Script:Version -ge "7.12")
 			{
-				0 {Line 0 "None"; Break}
-				1 {Line 0 "Multiple Activation Key (MAK)"; Break}
-				2 {Line 0 "Key Management Service (KMS)"; Break}
-				Default {Line 0 "Volume License Mode could not be determined: $($Disk.licenseMode)"; Break}
-			}
-			If($Script:PVSFullVersion -ge "7.22")
-			{
-				If($Disk.AccelerateOfficeActivation)
+				If($Disk.ClearCacheDisabled -eq 1)
 				{
-					Line 2 "Accelerate Office Activation`t`t`t: Yes"
+					$CachedSecretsCleanup = "Yes"
 				}
 				Else
 				{
-					Line 2 "Accelerate Office Activation`t`t`t: No"
+					$CachedSecretsCleanup = "No"
 				}
 			}
+			Switch ($Disk.licenseMode)
+			{
+				0 		{$licenseMode = "None"; Break}
+				1 		{$licenseMode = "Multiple Activation Key (MAK)"; Break}
+				2 		{$licenseMode = "Key Management Service (KMS)"; Break}
+				Default {$licenseMode = "Volume License Mode could not be determined: $($Disk.licenseMode)"; Break}
+			}
+			If($Script:Version -ge "7.22")
+			{
+				If($Disk.AccelerateOfficeActivation -eq "1")
+				{
+					$AccelerateOfficeActivation = "Yes"
+				}
+				Else
+				{
+					$AccelerateOfficeActivation = "No"
+				}
+			}
+			If($Disk.autoUpdateEnabled -eq "1")
+			{
+				$autoUpdateEnabled = "Yes"
+			}
+			Else
+			{
+				$autoUpdateEnabled = "No"
+			}
+			$DiskSize = (($Disk.diskSize/1024)/1024)
+
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 3 0 $Disk.diskLocatorName
+				WriteWordLine 4 0 "vDisk Properties"
+				WriteWordLine 0 0 "General"
+				[System.Collections.Hashtable[]] $ScriptInformation = @()
+				$ScriptInformation += @{ Data = "Site"; Value = $Disk.siteName; }
+				$ScriptInformation += @{ Data = "Store"; Value = $Disk.storeName; }
+				$ScriptInformation += @{ Data = "Filename"; Value = $Disk.diskLocatorName; }
+				$ScriptInformation += @{ Data = "Size"; Value = "$($diskSize) MB"; }
+				$ScriptInformation += @{ Data = "VHD block size"; Value = "$($Disk.vhdBlockSize) KB"; }
+				$ScriptInformation += @{ Data = "Access mode"; Value = $accessMode; }
+				If($Disk.writeCacheType -ne 0)
+				{
+					$ScriptInformation += @{ Data = "Cache type"; Value = $writeCacheType; }
+				}
+				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 3)
+				{
+					$ScriptInformation += @{ Data = "Cache size"; Value = "$($Disk.writeCacheSize) MB"; }
+				}
+				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 9)
+				{
+					$ScriptInformation += @{ Data = "Maximum RAM size"; Value = "$($Disk.writeCacheSize) MBs"; }
+				}
+				If(![String]::IsNullOrEmpty($Disk.menuText))
+				{
+					$ScriptInformation += @{ Data = "BIOS boot menu text"; Value = $Disk.menuText; }
+				}
+				$ScriptInformation += @{ Data = "Enable AD machine account password management"; Value = $adPasswordEnabled; }
+				$ScriptInformation += @{ Data = "Enable printer management"; Value = $printerManagementEnabled; }
+				$ScriptInformation += @{ Data = "Enable streaming of this vDisk"; Value = $Enabled; }
+				If($Script:PVSFullVersion -ge "7.12")
+				{
+					$ScriptInformation += @{ Data = "Cached secrets cleanup disabled"; Value = $CachedSecretsCleanup; }
+				}
+				$Table = AddWordTable -Hashtable $ScriptInformation `
+				-Columns Data,Value `
+				-List `
+				-Format $wdTableGrid `
+				-AutoFit $wdAutoFitContent;
+
+				SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+				$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+				FindWordDocumentEnd
+				$Table = $Null
+				WriteWordLine 0 0 ""
+			}
+			If($Text)
+			{
+				Line 1 $Disk.diskLocatorName
+				Line 2 "vDisk Properties"
+				Line 3 "General"
+				Line 4 "Site`t`t: " $Disk.siteName
+				Line 4 "Store`t`t: " $Disk.storeName
+				Line 4 "Filename`t: " $Disk.diskLocatorName
+				Line 4 "Size`t`t: " "$($diskSize) MB"
+				Line 4 "VHD block size`t: " "$($Disk.vhdBlockSize) KB"
+				Line 4 "Access mode`t: " $accessMode
+				If($Disk.writeCacheType -ne 0)
+				{
+					Line 4 "Cache type`t: " $writeCacheType
+				}
+				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 3)
+				{
+					Line 4 "Cache size`t: " "$($Disk.writeCacheSize) MB"
+				}
+				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 9)
+				{
+					Line 4 "Maximum RAM size: " "$($Disk.writeCacheSize) MBs"
+				}
+				If(![String]::IsNullOrEmpty($Disk.menuText))
+				{
+					Line 4 "BIOS boot menu text`t`t`t: " $Disk.menuText
+				}
+				Line 4 "Enable AD machine acct pwd mgmt`t: " $adPasswordEnabled
+				Line 4 "Enable printer management`t: " $printerManagementEnabled
+				Line 4 "Enable streaming of this vDisk`t: " $Enabled
+				If($Script:PVSFullVersion -ge "7.12")
+				{
+					Line 4 "Cached secrets cleanup disabled`t: " $CachedSecretsCleanup
+				}
+				Line 0 ""
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 3 0 $Disk.diskLocatorName
+				WriteHTMLLine 4 0 "vDisk Properties"
+				$rowdata = @()
+				$columnHeaders = @("Site",($htmlsilver -bor $htmlbold),$Disk.siteName,$htmlwhite)
+				$rowdata += @(,('Store',($htmlsilver -bor $htmlbold),$Disk.storeName,$htmlwhite))
+				$rowdata += @(,('Filename',($htmlsilver -bor $htmlbold),$Disk.diskLocatorName,$htmlwhite))
+				$rowdata += @(,('Size',($htmlsilver -bor $htmlbold),"$($diskSize) MB",$htmlwhite))
+				$rowdata += @(,('VHD block size',($htmlsilver -bor $htmlbold),"$($Disk.vhdBlockSize) KB",$htmlwhite))
+				$rowdata += @(,('Access mode',($htmlsilver -bor $htmlbold),$accessMode,$htmlwhite))
+				If($Disk.writeCacheType -ne 0)
+				{
+					$rowdata += @(,('Cache type',($htmlsilver -bor $htmlbold),$writeCacheType,$htmlwhite))
+				}
+				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 3)
+				{
+					$rowdata += @(,('Cache size',($htmlsilver -bor $htmlbold),"$($Disk.writeCacheSize) MB",$htmlwhite))
+				}
+				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 9)
+				{
+					$rowdata += @(,('Maximum RAM size',($htmlsilver -bor $htmlbold),"$($Disk.writeCacheSize) MBs",$htmlwhite))
+				}
+				If(![String]::IsNullOrEmpty($Disk.menuText))
+				{
+					$rowdata += @(,('BIOS boot menu text',($htmlsilver -bor $htmlbold),$Disk.menuText,$htmlwhite))
+				}
+				$rowdata += @(,('Enable AD machine account password management',($htmlsilver -bor $htmlbold),$adPasswordEnabled,$htmlwhite))
+				$rowdata += @(,('Enable printer management',($htmlsilver -bor $htmlbold),$printerManagementEnabled,$htmlwhite))
+				$rowdata += @(,('Enable streaming of this vDisk',($htmlsilver -bor $htmlbold),$Enabled,$htmlwhite))
+				If($Script:PVSFullVersion -ge "7.12")
+				{
+					$rowdata += @(,('Cached secrets cleanup disabled',($htmlsilver -bor $htmlbold),$CachedSecretsCleanup,$htmlwhite))
+				}
+				
+				$msg = "General"
+				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+				WriteHTMLLine 0 0 " "
+			}
+
 
 			Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Auto Update Tab"
 			If($Disk.activationDateEnabled -eq "0")
@@ -7923,27 +8763,101 @@ Function ProcessvDisksinFarm
 			}
 			Line 0 ""
 		}
-	}
 
-	Line 1 "Number of vDisks that are Enabled and have active connections: " $NumberofvDisks
-	Line 0 ""
-	# http://blogs.citrix.com/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/
-	[decimal]$RecRAM = ((2 + ($NumberofvDisks * 2)) * 1.15)
-	$RecRAM = "{0:N0}" -f $RecRAM
-	Line 1 "Recommended RAM for each PVS Server using XenDesktop vDisks  : $($RecRAM)GB"
-	[decimal]$RecRAM = ((2 + ($NumberofvDisks * 4)) * 1.15)
-	$RecRAM = "{0:N0}" -f $RecRAM
-	Line 1 "Recommended RAM for each PVS Server using XenApp vDisks      : $($RecRAM)GB"
-	[decimal]$RecRAM = ((2 + (($NumberofvDisks * 4) + ($NumberofvDisks * 2))) * 1.15)
-	$RecRAM = "{0:N0}" -f $RecRAM
-	Line 1 "Recommended RAM for each PVS Server using XA & XD vDisks     : $($RecRAM)GB"
-	Line 0 ""
-	Line 1 "This script is not able to tell if a vDisk is running XenDesktop or XenApp."
-	Line 1 "The RAM calculation is done based on both scenarios. The original formula is:"
-	Line 1 "2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)"
-	Line 1 'PVS Internals 2 - How to properly size your memory by Martin Zugec'
-	Line 1 'https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/'
-	Line 0 ""
+		# http://blogs.citrix.com/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/
+		[decimal]$XDRecRAM = ((2 + ($NumberofvDisks * 2)) * 1.15)
+		$XDRecRAM = "{0:N0}" -f $XDRecRAM
+
+		[decimal]$XARecRAM = ((2 + ($NumberofvDisks * 4)) * 1.15)
+		$XARecRAM = "{0:N0}" -f $XARecRAM
+
+		[decimal]$XDXARecRAM = ((2 + (($NumberofvDisks * 4) + ($NumberofvDisks * 2))) * 1.15)
+		$XDXARecRAM = "{0:N0}" -f $XDXARecRAM
+
+		If($MSWord -or $PDF)
+		{
+			[System.Collections.Hashtable[]] $ScriptInformation = @()
+			$ScriptInformation += @{ Data = "Number of vDisks that are Enabled and have active connections"; Value = $NumberofvDisks.ToString(); }
+			$ScriptInformation += @{ Data = ""; Value = ""; }
+			$ScriptInformation += @{ Data = "Recommended RAM for each PVS Server using XenDesktop vDisks"; Value = "$($XDRecRAM)GB"; }
+			$ScriptInformation += @{ Data = "Recommended RAM for each PVS Server using XenApp vDisks"; Value = "$($XARecRAM)GB"; }
+			$ScriptInformation += @{ Data = "Recommended RAM for each PVS Server using XA & XD vDisks"; Value = "$($XDXARecRAM)GB"; }
+			$ScriptInformation += @{ Data = ""; Value = ""; }
+			$ScriptInformation += @{ Data = "This script is not able to tell if a vDisk is running XenDesktop or XenApp"; Value = ""; }
+			$ScriptInformation += @{ Data = "The RAM calculation is done based on both scenarios. The original formula is"; Value = ""; }
+			$ScriptInformation += @{ Data = "2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)"; Value = ""; }
+			$ScriptInformation += @{ Data = "PVS Internals 2 - How to properly size your memory by Martin Zugec"; Value = ""; }
+			$ScriptInformation += @{ Data = "https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/"; Value = ""; }
+
+			$Table = AddWordTable -Hashtable $ScriptInformation `
+			-Columns Data,Value `
+			-List `
+			-Format $wdTableGrid `
+			-AutoFit $wdAutoFitContent;
+
+			SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+			$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+			FindWordDocumentEnd
+			$Table = $Null
+			WriteWordLine 0 0 ""
+		}
+		If($Text)
+		{
+			Line 1 "Number of vDisks that are Enabled and have active connections: " $NumberofvDisks.ToString()
+			Line 0 ""
+			Line 1 "Recommended RAM for each PVS Server using XenDesktop vDisks  : $($XDRecRAM)GB"
+			Line 1 "Recommended RAM for each PVS Server using XenApp vDisks      : $($XARecRAM)GB"
+			Line 1 "Recommended RAM for each PVS Server using XA & XD vDisks     : $($XDXARecRAM)GB"
+			Line 0 ""
+			Line 1 "This script is not able to tell if a vDisk is running XenDesktop or XenApp."
+			Line 1 "The RAM calculation is done based on both scenarios. The original formula is:"
+			Line 1 "2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)"
+			Line 1 'PVS Internals 2 - How to properly size your memory by Martin Zugec'
+			Line 1 'https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/'
+			Line 0 ""
+		}
+		If($HTML)
+		{
+			$rowdata = @()
+			$columnHeaders = @("Number of vDisks that are Enabled and have active connections",($htmlsilver -bor $htmlbold),$NumberofvDisks.ToString(),$htmlwhite)
+			$rowdata += @(,('',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,('Recommended RAM for each PVS Server using XenDesktop vDisks',($htmlsilver -bor $htmlbold),"$($XDRecRAM)GB",$htmlwhite))
+			$rowdata += @(,('Recommended RAM for each PVS Server using XenApp vDisks',($htmlsilver -bor $htmlbold),"$($XARecRAM)GB",$htmlwhite))
+			$rowdata += @(,('Recommended RAM for each PVS Server using XA & XD vDisks',($htmlsilver -bor $htmlbold),"$($XDXARecRAM)GB",$htmlwhite))
+			$rowdata += @(,('',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,('This script is not able to tell if a vDisk is running XenDesktop or XenApp',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,('The RAM calculation is done based on both scenarios. The original formula is',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,('2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,('PVS Internals 2 - How to properly size your memory by Martin Zugec',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,('https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$msg = ""
+			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+			WriteHTMLLine 0 0 ""
+		}
+	}
+	Else
+	{
+		If($MSWord -or $PDF)
+		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No vDisks were found in the Farm***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
+		}
+		If($Text)
+		{
+			Line 0 ""
+			Line 1 "***No vDisks were found in the Farm***"
+			Line 0 ""
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No vDisks were found in the Farm***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
+		}
+	}
 }
 #endregion
 
@@ -8083,6 +8997,8 @@ Function OutputAppendixA
 
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix A - Advanced Server Items (Server/Network)"
 	}
 	If($Text)
 	{
@@ -8095,6 +9011,7 @@ Function OutputAppendixA
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix A - Advanced Server Items (Server/Network)"
 	}
 
 	ForEach($Item in $Script:AdvancedItems1)
@@ -8145,6 +9062,8 @@ Function OutputAppendixB
 
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix B - Advanced Server Items (Pacing/Device)"
 	}
 	If($Text)
 	{
@@ -8158,6 +9077,7 @@ Function OutputAppendixB
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix B - Advanced Server Items (Pacing/Device)"
 	}
 
 	ForEach($Item in $Script:AdvancedItems2)
@@ -8208,6 +9128,8 @@ Function OutputAppendixC
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix C - Configuration Wizard Settings"
 	}
 	If($Text)
 	{
@@ -8219,6 +9141,7 @@ Function OutputAppendixC
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix C - Configuration Wizard Settings"
 	}
 
 	If($Script:ConfigWizItems)
@@ -8243,13 +9166,21 @@ Function OutputAppendixC
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Configuration Wizard Settings were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Configuration Wizard Settings were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Configuration Wizard Settings were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 
@@ -8285,6 +9216,8 @@ Function OutputAppendixD
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix D - Server Bootstrap Items"
 	}
 	If($Text)
 	{
@@ -8296,6 +9229,7 @@ Function OutputAppendixD
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix D - Server Bootstrap Items"
 	}
 
 	If($Script:BootstrapItems)
@@ -8319,13 +9253,21 @@ Function OutputAppendixD
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Server Bootstrap Items were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Server Bootstrap Items were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Server Bootstrap Items were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -8361,6 +9303,8 @@ Function OutputAppendixE
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix E - DisableTaskOffload Settings"
 	}
 	If($Text)
 	{
@@ -8375,6 +9319,7 @@ Function OutputAppendixE
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix E - DisableTaskOffload Settings"
 	}
 
 	If($Script:TaskOffloadItems)
@@ -8397,13 +9342,21 @@ Function OutputAppendixE
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No DisableTaskOffload Settings were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No DisableTaskOffload Settings were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No DisableTaskOffload Settings were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -8440,10 +9393,12 @@ Function OutputAppendixF
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix F1 - Server PVS Service Items"
 	}
 	If($Text)
 	{
-		Line 0 "Appendix F - Server PVS Service Items"
+		Line 0 "Appendix F1 - Server PVS Service Items"
 		Line 0 ""
 		Line 1 "Display Name                      Server Name      Service Name  Status Startup Type Started State   Log on as" 
 		Line 1 "========================================================================================================================================"
@@ -8452,6 +9407,7 @@ Function OutputAppendixF
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix F1 - Server PVS Service Items"
 	}
 
 	If($Script:PVSServiceItems)
@@ -8476,13 +9432,21 @@ Function OutputAppendixF
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Server PVS Service Items were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Server PVS Service Items were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Server PVS Service Items were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -8510,6 +9474,8 @@ Function OutputAppendixF2
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix F2 - Server PVS Service Items Failure Actions"
 	}
 	If($Text)
 	{
@@ -8520,6 +9486,7 @@ Function OutputAppendixF2
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix F2 - Server PVS Service Items Failure Actions"
 	}
 
 	If($Script:PVSServiceItems)
@@ -8543,13 +9510,21 @@ Function OutputAppendixF2
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Server PVS Service Items Failure Actions were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Server PVS Service Items Failure Actions were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Server PVS Service Items Failure Actions were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -8585,6 +9560,8 @@ Function OutputAppendixG
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix G - vDisks to Consider Merging"
 	}
 	If($Text)
 	{
@@ -8595,6 +9572,7 @@ Function OutputAppendixG
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix G - vDisks to Consider Merging"
 	}
 
 	If($Script:VersionsToMerge)
@@ -8617,13 +9595,21 @@ Function OutputAppendixG
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No vDisks to Consider Merging were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No vDisks to Consider Merging were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No vDisks to Consider Mergings were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 
@@ -8659,6 +9645,8 @@ Function OutputAppendixH
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix H - Empty Device Collections"
 	}
 	If($Text)
 	{
@@ -8669,6 +9657,7 @@ Function OutputAppendixH
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix H - Empty Device Collections"
 	}
 
 	If($Script:EmptyDeviceCollections)
@@ -8691,13 +9680,21 @@ Function OutputAppendixH
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Empty Device Collections were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Empty Device Collections were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Empty Device Collections were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -8783,6 +9780,8 @@ Function OutputAppendixI
 
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix I - vDisks with no Target Device Associations"
 	}
 	If($Text)
 	{
@@ -8793,6 +9792,7 @@ Function OutputAppendixI
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix I - vDisks with no Target Device Associations"
 	}
 	
 	If($vDisks)
@@ -8824,13 +9824,21 @@ Function OutputAppendixI
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No vDisks with no Target Device Associations were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No vDisks with no Target Device Associations were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No vDisks with no Target Device Associations were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -8866,6 +9874,8 @@ Function OutputAppendixJ
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix J - Bad Streaming IP Addresses"
 	}
 	If($Text)
 	{
@@ -8874,6 +9884,7 @@ Function OutputAppendixJ
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix J - Bad Streaming IP Addresses"
 	}
 
 	If($Script:PVSVersion -eq "7")
@@ -8910,13 +9921,21 @@ Function OutputAppendixJ
 		{
 			If($MSWord -or $PDF)
 			{
+				WriteWordLine 0 0 ""
+				WriteWordLine 0 0 "***No Bad Streaming IP Addresses were found***" "" $Null 0 $False $True
+				WroteWordLine 0 0 ""
 			}
 			If($Text)
 			{
-				Line 1 "<None found>"
+				Line 0 ""
+				Line 1 "***No Bad Streaming IP Addresses were found***"
+				Line 0 ""
 			}
 			If($HTML)
 			{
+				WriteHTMLLine 0 0 ""
+				WriteHTMLLine 0 0 "***No Bad Streaming IP Addresses were found***" -Option $htmlBold
+				WriteHTMLLine 0 0 ""
 			}
 		}
 	}
@@ -8966,6 +9985,8 @@ Function OutputAppendixK
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix K - Misc Registry Items"
 	}
 	If($Text)
 	{
@@ -8980,6 +10001,7 @@ Function OutputAppendixK
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix K - Misc Registry Items"
 	}
 	
 	$Save = ""
@@ -9025,13 +10047,21 @@ Function OutputAppendixK
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Misc Registry Items were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Misc Registry Items were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Misc Registry Items were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9066,6 +10096,8 @@ Function OutputAppendixL
 
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix L - vDisks Configured for Server Side-Caching"
 	}
 	If($Text)
 	{
@@ -9074,6 +10106,7 @@ Function OutputAppendixL
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix L - vDisks Configured for Server Side-Caching"
 	}
 
 	If($Script:CacheOnServer)
@@ -9110,13 +10143,21 @@ Function OutputAppendixL
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No vDisks Configured for Server Side-Caching were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No vDisks Configured for Server Side-Caching were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No vDisks Configured for Server Side-Caching were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9153,6 +10194,8 @@ Function OutputAppendixM
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix M - Microsoft Hotfixes and Updates"
 	}
 	If($Text)
 	{
@@ -9166,6 +10209,7 @@ Function OutputAppendixM
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix M - Microsoft Hotfixes and Updates"
 	}
 	
 	$Save = ""
@@ -9211,13 +10255,21 @@ Function OutputAppendixM
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Microsoft Hotfixes and Updates were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Microsoft Hotfixes and Updates were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Microsoft Hotfixes and Updates were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9251,7 +10303,20 @@ Function OutputAppendixN
 		$Script:WinInstalledComponents | Export-CSV -Force -Encoding ASCII -NoTypeInformation -Path $File
 	}
 	
-	Line 0 "Appendix N - Windows Installed Components"
+	If($MSWord -or $PDF)
+	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix N - Windows Installed Components"
+	}
+	If($Text)
+	{
+		Line 0 "Appendix N - Windows Installed Components"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 3 0 "Appendix N - Windows Installed Components"
+	}
+
 	If($Script:RunningOS -like "*2008*")
 	{
 		If($MSWord -or $PDF)
@@ -9327,13 +10392,21 @@ Function OutputAppendixN
 		{
 			If($MSWord -or $PDF)
 			{
+				WriteWordLine 0 0 ""
+				WriteWordLine 0 0 "***No Windows installed Roles and Features were found***" "" $Null 0 $False $True
+				WroteWordLine 0 0 ""
 			}
 			If($Text)
 			{
-				Line 1 "<None found>"
+				Line 0 ""
+				Line 1 "***No Windows installed Roles and Features were found***"
+				Line 0 ""
 			}
 			If($HTML)
 			{
+				WriteHTMLLine 0 0 ""
+				WriteHTMLLine 0 0 "***No Windows installed Roles and Features were found***" -Option $htmlBold
+				WriteHTMLLine 0 0 ""
 			}
 		}
 
@@ -9370,6 +10443,8 @@ Function OutputAppendixO
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix O - PVS Processes"
 	}
 	If($Text)
 	{
@@ -9383,6 +10458,7 @@ Function OutputAppendixO
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix O - PVS Processes"
 	}
 
 	$Save = ""
@@ -9428,13 +10504,21 @@ Function OutputAppendixO
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No PVS Processes were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No PVS Processes were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No PVS Processes were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9470,6 +10554,8 @@ Function OutputAppendixP
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix P - Items to Review"
 	}
 	If($Text)
 	{
@@ -9482,6 +10568,7 @@ Function OutputAppendixP
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix P - Items to Review"
 	}
 
 	If($Script:ItemsToReview)
@@ -9502,16 +10589,24 @@ Function OutputAppendixP
 	}
 	Else
 	{
-		If($MSWord -or $PDF)
-		{
-		}
-		If($Text)
-		{
-			Line 1 "<None found>"
-		}
-		If($HTML)
-		{
-		}
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 0 0 ""
+				WriteWordLine 0 0 "***No Items to Review were found***" "" $Null 0 $False $True
+				WroteWordLine 0 0 ""
+			}
+			If($Text)
+			{
+				Line 0 ""
+				Line 1 "***No Items to Review were found***"
+				Line 0 ""
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 0 0 ""
+				WriteHTMLLine 0 0 "***No Items to Review were found***" -Option $htmlBold
+				WriteHTMLLine 0 0 ""
+			}
 	}
 	
 	If($MSWord -or $PDF)
@@ -9558,6 +10653,9 @@ Function OutputAppendixQ
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix Q - Server Items to Review"
+		WriteWordLine 3 0 "Computer Items to Review"
 	}
 	If($Text)
 	{
@@ -9573,6 +10671,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix Q - Server Items to Review"
 	}
 
 	If($Script:ServerComputerItemsToReview)
@@ -9596,13 +10695,21 @@ Function OutputAppendixQ
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Server Items to Review were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 2 "<None found>"
+			Line 0 ""
+			Line 2 "***No Server Items to Review were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Server Items to Review were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9619,6 +10726,7 @@ Function OutputAppendixQ
 
 	If($MSWord -or $PDF)
 	{
+		WriteWordLine 3 0 "Drive Items to Review"
 	}
 	If($Text)
 	{
@@ -9631,6 +10739,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Drive Items to Review"
 	}
 
 	If($Script:ServerDriveItemsToReview)
@@ -9654,13 +10763,21 @@ Function OutputAppendixQ
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Drive Items to Review were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 2 "<None found>"
+			Line 0 ""
+			Line 2 "***No Drive Items to Review were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Drive Items to Review were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9677,6 +10794,7 @@ Function OutputAppendixQ
 
 	If($MSWord -or $PDF)
 	{
+		WriteWordLine 3 0 "Processor Items to Review"
 	}
 	If($Text)
 	{
@@ -9689,6 +10807,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Processor Items to Review"
 	}
 
 	If($Script:ServerProcessorItemsToReview)
@@ -9712,13 +10831,21 @@ Function OutputAppendixQ
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Processor Items to Review were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 2 "<None found>"
+			Line 0 ""
+			Line 2 "***No Processor Items to Review were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Processor Items to Review were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9735,6 +10862,7 @@ Function OutputAppendixQ
 
 	If($MSWord -or $PDF)
 	{
+		WriteWordLine 3 0 "NIC Items to Review"
 	}
 	If($Text)
 	{
@@ -9747,6 +10875,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "NIC Items to Review"
 	}
 
 	If($Script:ServerNICItemsToReview)
@@ -9770,13 +10899,21 @@ Function OutputAppendixQ
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No NIC Items to Review were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 2 "<None found>"
+			Line 0 ""
+			Line 1 "***No NIC Items to Review were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No NIC Items to Review were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -9812,6 +10949,8 @@ Function OutputAppendixR
 	
 	If($MSWord -or $PDF)
 	{
+		$selection.InsertNewPage()
+		WriteWordLine 2 0 "Appendix R - Citrix Installed Components"
 	}
 	If($Text)
 	{
@@ -9833,6 +10972,7 @@ Function OutputAppendixR
 	}
 	If($HTML)
 	{
+		WriteHTMLLine 3 0 "Appendix R - Citrix Installed Components"
 	}
 	
 	$Save = ""
@@ -9878,13 +11018,21 @@ Function OutputAppendixR
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 ""
+			WriteWordLine 0 0 "***No Citrix Installed Components were found***" "" $Null 0 $False $True
+			WroteWordLine 0 0 ""
 		}
 		If($Text)
 		{
-			Line 1 "<None found>"
+			Line 0 ""
+			Line 1 "***No Citrix Installed Components were found***"
+			Line 0 ""
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 ""
+			WriteHTMLLine 0 0 "***No Citrix Installed Components were found***" -Option $htmlBold
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	
@@ -10029,327 +11177,6 @@ Function ProcessScriptEnd
 	$ErrorActionPreference = $SaveEAPreference
 }
 #endregion
-
-Function GetConfigWizardInfo
-{
-	Param([string]$ComputerName)
-	
-	Write-Verbose "$(Get-Date -Format G): `t`t`t`tGather Config Wizard info"
-	$DHCPServicesValue = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "DHCPType" $ComputerName
-	$PXEServiceValue = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "PXEType" $ComputerName
-	
-	$DHCPServices = ""
-	$PXEServices = ""
-
-	Switch ($DHCPServicesValue)
-	{
-		1073741824 {$DHCPServices = "The service that runs on another computer"; Break}
-		0 {$DHCPServices = "Microsoft DHCP"; Break}
-		1 {$DHCPServices = "Provisioning Services BOOTP service"; Break}
-		2 {$DHCPServices = "Other BOOTP or DHCP service"; Break}
-		Default {$DHCPServices = "Unable to determine DHCPServices: $($DHCPServicesValue)"; Break}
-	}
-
-	If($DHCPServicesValue -eq 1073741824)
-	{
-		Switch ($PXEServiceValue)
-		{
-			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
-			0 {$PXEServices = "Provisioning Services PXE service"; Break}
-			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
-		}
-	}
-	ElseIf($DHCPServicesValue -eq 0)
-	{
-		Switch ($PXEServiceValue)
-		{
-			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
-			0 {$PXEServices = "Microsoft DHCP"; Break}
-			1 {$PXEServices = "Provisioning Services PXE service"; Break}
-			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
-		}
-	}
-	ElseIf($DHCPServicesValue -eq 1)
-	{
-		$PXEServices = "N/A"
-	}
-	ElseIf($DHCPServicesValue -eq 2)
-	{
-		Switch ($PXEServiceValue)
-		{
-			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
-			0 {$PXEServices = "Provisioning Services PXE service"; Break}
-			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
-		}
-	}
-
-	$UserAccount1Value = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "Account1" $ComputerName
-	$UserAccount3Value = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "Account3" $ComputerName
-	
-	$UserAccount = ""
-	
-	If([String]::IsNullOrEmpty($UserAccount1Value) -and $UserAccount3Value -eq 1)
-	{
-		$UserAccount = "NetWork Service"
-	}
-	ElseIf([String]::IsNullOrEmpty($UserAccount1Value) -and $UserAccount3Value -eq 0)
-	{
-		$UserAccount = "Local system account"
-	}
-	ElseIf(![String]::IsNullOrEmpty($UserAccount1Value))
-	{
-		$UserAccount = $UserAccount1Value
-	}
-
-	$TFTPOptionValue = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Wizard" "TFTPSetting" $ComputerName
-	$TFTPOption = ""
-	
-	If($TFTPOptionValue -eq 1)
-	{
-		$TFTPOption = "Yes"
-		$TFTPBootstrapLocation = Get-RegistryValue "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Admin" "Bootstrap" $ComputerName
-	}
-	Else
-	{
-		$TFTPOption = "No"
-	}
-
-	$obj1 = [PSCustomObject] @{
-		ServerName        = $ComputerName
-		DHCPServicesValue = $DHCPServicesValue
-		PXEServicesValue  = $PXEServiceValue
-		UserAccount       = $UserAccount
-		TFTPOptionValue   = $TFTPOptionValue
-	}
-	$null = $Script:ConfigWizItems.Add($obj1)
-	
-	Line 2 "Configuration Wizard Settings"
-	Line 3 "DHCP Services`t`t: " $DHCPServices
-	Line 3 "PXE Services`t`t: " $PXEServices
-	Line 3 "User account`t`t: " $UserAccount
-	Line 3 "TFTP Option`t`t: " $TFTPOption
-	If($TFTPOptionValue -eq 1)
-	{
-		Line 3 "TFTP Bootstrap Location`t: " $TFTPBootstrapLocation
-	}
-	
-	Line 0 ""
-}
-
-Function GetDisableTaskOffloadInfo
-{
-	Param([string]$ComputerName)
-	
-	Write-Verbose "$(Get-Date -Format G): `t`t`t`tGather TaskOffload info"
-	$TaskOffloadValue = Get-RegistryValue "HKLM:\SYSTEM\CurrentControlSet\Services\TCPIP\Parameters" "DisableTaskOffload" $ComputerName
-	
-	If($Null -eq $TaskOffloadValue)
-	{
-		$TaskOffloadValue = "Missing"
-	}
-	
-	$obj1 = [PSCustomObject] @{
-		ServerName       = $ComputerName	
-		TaskOffloadValue = $TaskOffloadValue	
-	}
-	$null = $Script:TaskOffloadItems.Add($obj1)
-	
-	Line 2 "TaskOffload Settings"
-	Line 3 "Value: " $TaskOffloadValue
-	
-	Line 0 ""
-}
-
-Function Get-RegKeyToObject 
-{
-	#function contributed by Andrew Williamson @ Fujitsu Services
-    param([string]$RegPath,
-    [string]$RegKey,
-    [string]$ComputerName)
-	
-    $val = Get-RegistryValue $RegPath $RegKey $ComputerName
-	
-    If($Null -eq $val) 
-	{
-        $tmp = "Not set"
-    } 
-	Else 
-	{
-	    $tmp = $val
-    }
-	
-	$obj1 = [PSCustomObject] @{
-		ServerName = $ComputerName	
-		RegKey     = $RegPath	
-		RegValue   = $RegKey	
-		Value      = $tmp	
-	}
-	$null = $Script:MiscRegistryItems.Add($obj1)
-}
-
-Function GetMiscRegistryKeys
-{
-	Param([string]$ComputerName)
-	
-	#look for the following registry keys and values on PVS servers
-		
-	#Registry Key                                                      Registry Value                 
-	#=================================================================================================
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        AutoUpdateUserCache            
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        LoggingLevel 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        SkipBootMenu                   
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        UseManagementIpInCatalog       
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        UseTemplateBootOrder           
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    IPv4Address                    
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    PortBase 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    PortCount 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager                GeneralInetAddr                
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             IPCTraceFile 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             IPCTraceState 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             PortOffset 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier               IPCTraceFile 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier               IPCTraceState 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier               PortOffset 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\SoapServer             PortOffset 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          IPCTraceFile 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          IPCTraceState 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          PortOffset 
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          SkipBootMenu                   
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          SkipRIMS                       
-	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess          SkipRIMSforPrivate             
-	#HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters       WcHDNoIntermediateBuffering    
-	#HKLM:\SYSTEM\CurrentControlSet\services\BNIStack\Parameters       WcRamConfiguration             
-	#HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters       WcWarningIncrement             
-	#HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters       WcWarningPercent               
-	#HKLM:\SYSTEM\CurrentControlSet\Services\BNNS\Parameters           EnableOffload                  
-	#HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters         InitTimeoutSec           
-	#HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters         MaxBindRetry             
-	#HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters         InitTimeoutSec           
-	#HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters         MaxBindRetry      
-	
-	Write-Verbose "$(Get-Date -Format G): `t`t`t`tGather Misc Registry Key data"
-
-	#https://docs.citrix.com/en-us/provisioning/7-1/pvs-readme-7/7-fixed-issues.html
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "AutoUpdateUserCache" $ComputerName
-
-	#https://support.citrix.com/article/CTX135299
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "SkipBootMenu" $ComputerName
-
-	#https://support.citrix.com/article/CTX142613
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "UseManagementIpInCatalog" $ComputerName
-
-	#https://support.citrix.com/article/CTX142613
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "UseTemplateBootOrder" $ComputerName
-
-	#https://support.citrix.com/article/CTX200196
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC" "UseTemplateBootOrder" $ComputerName
-
-	#https://support.citrix.com/article/CTX200196
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager" "UseTemplateBootOrder" $ComputerName
-
-	#https://support.citrix.com/article/CTX135299
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "UseTemplateBootOrder" $ComputerName
-
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "SkipRIMS" $ComputerName
-
-	#https://support.citrix.com/article/CTX200233
-	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "SkipRIMSforPrivate" $ComputerName
-
-	#https://support.citrix.com/article/CTX126042
-	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters" "WcHDNoIntermediateBuffering" $ComputerName
-
-	#https://support.citrix.com/article/CTX139849
-	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\services\BNIStack\Parameters" "WcRamConfiguration" $ComputerName
-
-	#https://docs.citrix.com/en-us/provisioning/7-1/pvs-readme-7/7-fixed-issues.html
-	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters" "WcWarningIncrement" $ComputerName
-
-	#https://docs.citrix.com/en-us/provisioning/7-1/pvs-readme-7/7-fixed-issues.html
-	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNIStack\Parameters" "WcWarningPercent" $ComputerName
-
-	#https://support.citrix.com/article/CTX117374
-	Get-RegKeyToObject "HKLM:\SYSTEM\CurrentControlSet\Services\BNNS\Parameters" "EnableOffload" $ComputerName
-	
-	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
-	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters" "InitTimeoutSec" $ComputerName
-	
-	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
-	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\BNTFTP\Parameters" "MaxBindRetry" $ComputerName
-
-	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
-	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters" "InitTimeoutSec" $ComputerName
-	
-	#https://discussions.citrix.com/topic/362671-error-pxe-e53/#entry1863984
-	Get-RegKeyToObject "HKLM:\SYSTEM\Currentcontrolset\services\PVSTSB\Parameters" "MaxBindRetry" $ComputerName
-
-	#regkeys recommended by Andrew Williamson @ Fujitsu Services
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices" "LoggingLevel" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC" "PortBase" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC" "PortCount" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon" "IPCTraceFile" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon" "IPCTraceState" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon" "PortOffset" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier" "IPCTraceFile" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier" "IPCTraceState" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Notifier" "PortOffset" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\SoapServer" "PortOffset" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "IPCTraceFile" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "IPCTraceState" $ComputerName
-    Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "PortOffset" $ComputerName
-}
-
-# Gets the specified registry value or $Null if it is missing
-Function Get-RegistryValue
-{
-	[CmdletBinding()]
-	Param([string]$path, [string]$name, [string]$ComputerName)
-	If($ComputerName -eq $env:computername)
-	{
-		$key = Get-Item -LiteralPath $path -EA 0
-		If($key)
-		{
-			Return $key.GetValue($name, $Null)
-		}
-		Else
-		{
-			Return $Null
-		}
-	}
-	Else
-	{
-		#path needed here is different for remote registry access
-		$path = $path.SubString(6)
-		$path2 = $path.Replace('\','\\')
-		
-		Try
-		{
-			$Reg = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine', $ComputerName)
-			$RegKey = $Reg.OpenSubKey($path2)
-			If ($RegKey)
-			{
-				$Results = $RegKey.GetValue($name)
-
-				If($Null -ne $Results)
-				{
-					Return $Results
-				}
-				Else
-				{
-					Return $Null
-				}
-			}
-			Else
-			{
-				Return $Null
-			}
-		}
-		
-		Catch
-		{
-			Return $Null
-		}
-	}
-}
 
 Function BuildPVSObject
 {
@@ -10556,8 +11383,6 @@ OutputAppendixP	#Appendix P - Items to Review
 OutputAppendixQ	#Appendix Q - Server Items to Review
 
 OutputAppendixR #Appendix R - Citrix Installed Components
-
-SaveandCloseTextDocument
 
 #region finish script
 Write-Verbose "$(Get-Date -Format G): Finishing up document"
