@@ -1,5 +1,5 @@
 # Citrix-PVS-Health-Check-2
-Creates a basic health check of a Citrix PVS 5.x or later farm in plain text, 
+Creates a basic health check of a Citrix PVS 6.x or later farm in plain text, 
 HTML, Word, or PDF.
 
 This script has been tested with PVS 6.1 and 2112.
