@@ -401,9 +401,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.03
+	VERSION: 2 0.04
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 1, 2022
+	LASTEDIT: March 2, 2022
 #>
 
 
@@ -651,9 +651,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2 0.03'
+$script:MyVersion         = 'V2 0.04'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/01/2022"
+$tmpdate                  = [datetime] "03/02/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -4807,7 +4807,7 @@ Function ProcessPVSFarm
 		{
 			If($ProblemReports.UserName -eq "")
 			{
-				$CISUserName = "Not configured"
+				$CISUserName = "not configured"
 			}
 			Else
 			{
@@ -5299,18 +5299,20 @@ Function ProcessPVSSite
 						}
 							
 						Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Network Tab"
-						$test = $Server.ip.ToString()
-						$test1 = $test.replace(",",", ")
-						
 						$StreamingIPs = @($server.ip.split(","))
 						
 						ForEach($item in $StreamingIPs)
 						{
 							$obj1 = [PSCustomObject] @{
-								ServerName = $Server.serverName							
-								IPAddress  = $item							
+								ServerName = $Server.serverName
+								IPAddress  = $item
 							}
 							$null = $Script:StreamingIPAddresses.Add($obj1)
+						}
+
+						If($Script:PVSVersion -eq "7")
+						{
+							$Script:NICIPAddresses.Add( $Server.serverName, $Server.managementIp )
 						}
 
 						If($MSWord -or $PDF)
@@ -10044,6 +10046,7 @@ Function OutputAppendixH
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix H - Empty Device Collections"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10055,6 +10058,7 @@ Function OutputAppendixH
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix H - Empty Device Collections"
+		$rowdata = @()
 	}
 
 	If($Script:EmptyDeviceCollections)
@@ -10063,6 +10067,9 @@ Function OutputAppendixH
 		{
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				CollectionName = $Item.CollectionName;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10070,6 +10077,8 @@ Function OutputAppendixH
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.CollectionName,$htmlwhite))
 			}
 		}
 	}
@@ -10097,6 +10106,18 @@ Function OutputAppendixH
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns CollectionName `
+		-Headers "Device Collection Name" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10104,6 +10125,12 @@ Function OutputAppendixH
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Device Collection Name",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix G - Empty Device Collections"
@@ -10123,7 +10150,7 @@ Function ProcessvDisksWithNoAssociation
 	
 	If($Null -eq $DiskLocators)
 	{
-		Write-Host -foregroundcolor Red -backgroundcolor Black "VERBOSE: $(Get-Date -Format G): No DiskLocators Found"
+		Write-Verbose "$(Get-Date -Format G): No DiskLocators Found"
 		OutputAppendixI $Null
 	}
 	Else
@@ -10179,6 +10206,7 @@ Function OutputAppendixI
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix I - vDisks with no Target Device Associations"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10190,6 +10218,7 @@ Function OutputAppendixI
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix I - vDisks with no Target Device Associations"
+		$rowdata = @()
 	}
 	
 	If($vDisks)
@@ -10207,6 +10236,9 @@ Function OutputAppendixI
 		{
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				vDiskName = $Item.vDiskName;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10214,6 +10246,8 @@ Function OutputAppendixI
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.vDiskName,$htmlwhite))
 			}
 		}
 	}
@@ -10241,6 +10275,18 @@ Function OutputAppendixI
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns vDiskName `
+		-Headers "vDisk Name" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10248,6 +10294,12 @@ Function OutputAppendixI
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"vDisk Name",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix I - Unassociated vDisks"
@@ -10273,6 +10325,7 @@ Function OutputAppendixJ
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix J - Bad Streaming IP Addresses"
+		WriteWordLine 0 0 "Streaming IP addresses that do not exist on the server"
 	}
 	If($Text)
 	{
@@ -10282,28 +10335,28 @@ Function OutputAppendixJ
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix J - Bad Streaming IP Addresses"
+		WriteHTMLLine 0 0 "Streaming IP addresses that do not exist on the server"
 	}
 
 	If($Script:PVSVersion -eq "7")
 	{
-		If($MSWord -or $PDF)
-		{
-		}
 		If($Text)
 		{
 			Line 0 ""
 			Line 1 "Server Name      Streaming IP Address" 
 			Line 1 "====================================="
 		}
-		If($HTML)
-		{
-		}
+
 		If($Script:BadIPs) 
 		{
 			ForEach($Item in $Script:BadIPs)
 			{
 				If($MSWord -or $PDF)
 				{
+					$WordTableRowHash = @{ 
+					ServerName = $Item.serverName;
+					IPAddress  = $Item.IPAddress;}
+					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
 				{
@@ -10311,6 +10364,9 @@ Function OutputAppendixJ
 				}
 				If($HTML)
 				{
+					$rowdata += @(,(
+					$Item.serverName,$htmlwhite,
+					$Item.IPAddress,$htmlwhite))
 				}
 			}
 		}
@@ -10340,6 +10396,7 @@ Function OutputAppendixJ
 	{
 		If($MSWord -or $PDF)
 		{
+			Line 1 "Unable to determine Bad Streaming IP Addresses for PVS versions earlier than 7.0"
 		}
 		If($Text)
 		{
@@ -10347,11 +10404,26 @@ Function OutputAppendixJ
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 1 "Unable to determine Bad Streaming IP Addresses for PVS versions earlier than 7.0"
 		}
 	}
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns ServerName, 
+			IPAddress	`
+		-Headers "Server Name", 
+			"Streaming IP Address" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10359,6 +10431,13 @@ Function OutputAppendixJ
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Server Name", ($htmlsilver -bor $htmlbold),
+			"Streaming IP Address",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix J Bad Streaming IP Addresses"
@@ -10384,6 +10463,11 @@ Function OutputAppendixK
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix K - Misc Registry Items"
+		WriteWordLine 0 0 "Miscellaneous Registry Items That May or May Not Exist on Servers"
+		WriteWordLine 0 0 "These items may or may not be needed"
+		WriteWordLine 0 0 "This Appendix is strictly for server comparison only"
+		WriteWordLine 0 0 ""
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10399,6 +10483,11 @@ Function OutputAppendixK
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix K - Misc Registry Items"
+		WriteHTMLLine 0 0 "Miscellaneous Registry Items That May or May Not Exist on Servers"
+		WriteHTMLLine 0 0 "These items may or may not be needed"
+		WriteHTMLLine 0 0 "This Appendix is strictly for server comparison only"
+		WriteHTMLLine 0 0 ""
+		$rowdata = @()
 	}
 	
 	$Save = ""
@@ -10411,6 +10500,12 @@ Function OutputAppendixK
 			{
 				If($MSWord -or $PDF)
 				{
+					$WordTableRowHash = @{ 
+					RegKey     = "";
+					RegValue   = "";
+					Value      = "";
+					serverName = "";}
+					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
 				{
@@ -10418,11 +10513,22 @@ Function OutputAppendixK
 				}
 				If($HTML)
 				{
+					$rowdata += @(,(
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite))
 				}
 			}
 
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				RegKey     = $Item.RegKey;
+				RegValue   = $Item.RegValue;
+				Value      = $Item.Value;
+				serverName = $Item.serverName;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10431,6 +10537,11 @@ Function OutputAppendixK
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.RegKey,$htmlwhite,
+				$Item.RegValue,$htmlwhite,
+				$Item.Value,$htmlwhite,
+				$Item.serverName,$htmlwhite))
 			}
 
 			$Save = "$($Item.RegKey.ToString())$($Item.RegValue.ToString())"
@@ -10464,6 +10575,25 @@ Function OutputAppendixK
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns RegKey, 
+			RegValue, 
+			Value, 
+			serverName	`
+		-Headers "Registry Key", 
+			"Registry Value", 
+			"Data", 
+			"Server Name" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table -Size 9 -BackgroundColor $wdColorWhite
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10471,6 +10601,15 @@ Function OutputAppendixK
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Registry Key", ($htmlsilver -bor $htmlbold),
+			"Registry Value", ($htmlsilver -bor $htmlbold),
+			"Data", ($htmlsilver -bor $htmlbold),
+			"Server Name",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix K Misc Registry Items"
@@ -10495,6 +10634,7 @@ Function OutputAppendixL
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix L - vDisks Configured for Server Side-Caching"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10504,27 +10644,27 @@ Function OutputAppendixL
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix L - vDisks Configured for Server Side-Caching"
+		$rowdata = @()
 	}
 
 	If($Script:CacheOnServer)
 	{
-		If($MSWord -or $PDF)
-		{
-		}
 		If($Text)
 		{
 			Line 1 "Store Name                Site Name                 vDisk Name               "
 			Line 1 "============================================================================="
 				   #1234567890123456789012345 1234567890123456789012345 1234567890123456789012345
 		}
-		If($HTML)
-		{
-		}
 
 		ForEach($Item in $Script:CacheOnServer)
 		{
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				StoreName = $Item.StoreName;
+				SiteName  = $Item.SiteName;
+				vDiskName = $Item.vDiskName;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10533,6 +10673,10 @@ Function OutputAppendixL
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.StoreName,$htmlwhite,
+				$Item.SiteName,$htmlwhite,
+				$Item.vDiskName,$htmlwhite))
 			}
 		}
 	}
@@ -10560,6 +10704,23 @@ Function OutputAppendixL
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns StoreName, 
+			SiteName, 
+			vDiskName `
+		-Headers "Store Name", 
+			"Site Name", 
+			"vDisk Name" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table -Size 9 -BackgroundColor $wdColorWhite
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10567,6 +10728,14 @@ Function OutputAppendixL
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Store Name", ($htmlsilver -bor $htmlbold),
+			"Site Name", ($htmlsilver -bor $htmlbold),
+			"vDisk Name",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+		WriteHTMLLine 0 0 " "
 	}
 	
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix L vDisks Configured for Server-Side Caching"
@@ -10593,6 +10762,7 @@ Function OutputAppendixM
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix M - Microsoft Hotfixes and Updates"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10607,6 +10777,7 @@ Function OutputAppendixM
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix M - Microsoft Hotfixes and Updates"
+		$rowdata = @()
 	}
 	
 	$Save = ""
@@ -10619,6 +10790,14 @@ Function OutputAppendixM
 			{
 				If($MSWord -or $PDF)
 				{
+					$WordTableRowHash = @{ 
+					ServerName              = "";
+					ThreadsPerPort          = "";
+					BuffersPerThread        = "";
+					ServerCacheTimeout      = "";
+					LocalConcurrentIOLimit  = "";
+					EnableNonBlockingIO     = "";}
+					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
 				{
@@ -10626,11 +10805,26 @@ Function OutputAppendixM
 				}
 				If($HTML)
 				{
+					$rowdata += @(,(
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite))
 				}
 			}
 
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				HotFixID    = $Item.HotFixID;
+				ServerName  = $Item.ServerName;
+				Caption     = $Item.Caption;
+				Description = $Item.Description;
+				InstalledBy = $Item.InstalledBy;
+				InstalledOn = $Item.InstalledOn;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10639,6 +10833,13 @@ Function OutputAppendixM
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.HotFixID,$htmlwhite,
+				$Item.ServerName,$htmlwhite,
+				$Item.Caption,$htmlwhite,
+				$Item.Description,$htmlwhite,
+				$Item.InstalledBy,$htmlwhite,
+				$Item.InstalledOn,$htmlwhite))
 			}
 
 			$Save = "$($Item.HotFixID)"
@@ -10672,6 +10873,29 @@ Function OutputAppendixM
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns HotFixID, 
+			ServerName, 
+			Caption, 
+			Description, 
+			InstalledBy, 
+			InstalledOn	`
+		-Headers "Hotfix ID", 
+			"Server Name", 
+			"Caption", 
+			"Description", 
+			"Installed By", 
+			"Installed On Date" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table -Size 9 -BackgroundColor $wdColorWhite
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10679,6 +10903,17 @@ Function OutputAppendixM
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Hotfix ID", ($htmlsilver -bor $htmlbold),
+			"Server Name", ($htmlsilver -bor $htmlbold),
+			"Caption", ($htmlsilver -bor $htmlbold),
+			"Description", ($htmlsilver -bor $htmlbold),
+			"Installed By", ($htmlsilver -bor $htmlbold),
+			"Installed On Date",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix M Microsoft Hotfixes and Updates"
@@ -10704,6 +10939,7 @@ Function OutputAppendixN
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix N - Windows Installed Components"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10712,12 +10948,15 @@ Function OutputAppendixN
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix N - Windows Installed Components"
+		$rowdata = @()
 	}
 
 	If($Script:RunningOS -like "*2008*")
 	{
 		If($MSWord -or $PDF)
 		{
+			WriteWordLine 0 0 "Unable to determine for a Server running Server 2008 or 2008 R2"
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -10726,13 +10965,12 @@ Function OutputAppendixN
 		}
 		If($HTML)
 		{
+			WriteHTMLLine 0 0 "Unable to determine for a Server running Server 2008 or 2008 R2"
+			WriteHTMLLine 0 0 ""
 		}
 	}
 	Else
 	{
-		If($MSWord -or $PDF)
-		{
-		}
 		If($Text)
 		{
 			Line 0 ""
@@ -10741,9 +10979,6 @@ Function OutputAppendixN
 			#       12345678901234567890123456789012345678901234567890S123456789012345678901234567890S123456789012345SS123456789012345
 			#       Graphical Management Tools and Infrastructure      NET-Framework-45-Features      XXXXXXXXXXXXXXX  Role Service
 			#       50                                                 30                             15               15
-		}
-		If($HTML)
-		{
 		}
 
 		$Save = ""
@@ -10756,6 +10991,12 @@ Function OutputAppendixN
 				{
 					If($MSWord -or $PDF)
 					{
+						$WordTableRowHash = @{ 
+						DisplayName = "";
+						Name        = "";
+						ServerName  = "";
+						FeatureType = "";}
+						$ItemsWordTable += $WordTableRowHash;
 					}
 					If($Text)
 					{
@@ -10763,11 +11004,22 @@ Function OutputAppendixN
 					}
 					If($HTML)
 					{
+						$rowdata += @(,(
+						"",$htmlwhite,
+						"",$htmlwhite,
+						"",$htmlwhite,
+						"",$htmlwhite))
 					}
 				}
 
 				If($MSWord -or $PDF)
 				{
+					$WordTableRowHash = @{ 
+					DisplayName = $Item.DisplayName;
+					Name        = $Item.Name;
+					ServerName  = $Item.ServerName;
+					FeatureType = $Item.FeatureType;}
+					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
 				{
@@ -10776,6 +11028,11 @@ Function OutputAppendixN
 				}
 				If($HTML)
 				{
+					$rowdata += @(,(
+					$Item.DisplayName,$htmlwhite,
+					$Item.Name,$htmlwhite,
+					$Item.ServerName,$htmlwhite,
+					$Item.FeatureType,$htmlwhite))
 				}
 
 				$Save = "$($Item.DisplayName)$($Item.Name)"
@@ -10809,6 +11066,25 @@ Function OutputAppendixN
 
 		If($MSWord -or $PDF)
 		{
+			$Table = AddWordTable -Hashtable $ItemsWordTable `
+			-Columns DisplayName, 
+				Name, 
+				ServerName, 
+				FeatureType	`
+			-Headers "Display Name", 
+				"Name", 
+				"Server Name", 
+				"Feature Type" `
+			-AutoFit $wdAutoFitContent;
+
+			SetWordCellFormat -Collection $Table -Size 9 -BackgroundColor $wdColorWhite
+			SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+			$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+			FindWordDocumentEnd
+			$Table = $Null
+			$ItemsWordTable = $Null
 		}
 		If($Text)
 		{
@@ -10816,6 +11092,15 @@ Function OutputAppendixN
 		}
 		If($HTML)
 		{
+			$columnHeaders = @(
+				"Display Name", ($htmlsilver -bor $htmlbold),
+				"Name", ($htmlsilver -bor $htmlbold),
+				"Server Name", ($htmlsilver -bor $htmlbold),
+				"Feature Type",($htmlsilver -bor $htmlbold))
+							
+			$msg = ""
+			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+			WriteHTMLLine 0 0 " "
 		}
 	}
 
@@ -10842,6 +11127,7 @@ Function OutputAppendixO
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix O - PVS Processes"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10856,6 +11142,7 @@ Function OutputAppendixO
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix O - PVS Processes"
+		$rowdata = @()
 	}
 
 	$Save = ""
@@ -10868,6 +11155,11 @@ Function OutputAppendixO
 			{
 				If($MSWord -or $PDF)
 				{
+					$WordTableRowHash = @{ 
+					ProcessName = "";
+					ServerName  = "";
+					Status      = "";}
+					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
 				{
@@ -10875,11 +11167,20 @@ Function OutputAppendixO
 				}
 				If($HTML)
 				{
+					$rowdata += @(,(
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite))
 				}
 			}
 
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				ProcessName = $Item.ProcessName;
+				ServerName  = $Item.ServerName;
+				Status      = $Item.Status;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10888,6 +11189,10 @@ Function OutputAppendixO
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.ProcessName,$htmlwhite,
+				$Item.ServerName,$htmlwhite,
+				$Item.Status,$htmlwhite))
 			}
 
 			$Save = "$($Item.ProcessName)"
@@ -10921,6 +11226,23 @@ Function OutputAppendixO
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns ProcessName, 
+			ServerName, 
+			Status `
+		-Headers "Process Name", 
+			"Server Name", 
+			"Status" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table -Size 9 -BackgroundColor $wdColorWhite
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -10928,6 +11250,14 @@ Function OutputAppendixO
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Process Name", ($htmlsilver -bor $htmlbold),
+			"Server Name", ($htmlsilver -bor $htmlbold),
+			"Status",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix O PVS Processes"
@@ -10953,6 +11283,7 @@ Function OutputAppendixP
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix P - Items to Review"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -10966,6 +11297,7 @@ Function OutputAppendixP
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix P - Items to Review"
+		$rowdata = @()
 	}
 
 	If($Script:ItemsToReview)
@@ -10974,6 +11306,9 @@ Function OutputAppendixP
 		{
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				ItemText = $Item.ItemText;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -10981,6 +11316,8 @@ Function OutputAppendixP
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.ItemText,$htmlwhite))
 			}
 		}
 	}
@@ -11008,6 +11345,18 @@ Function OutputAppendixP
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns ItemText `
+		-Headers "Item" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -11015,6 +11364,12 @@ Function OutputAppendixP
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Item",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix P Items to Review"
@@ -11348,6 +11703,7 @@ Function OutputAppendixR
 	{
 		$selection.InsertNewPage()
 		WriteWordLine 2 0 "Appendix R - Citrix Installed Components"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -11370,6 +11726,7 @@ Function OutputAppendixR
 	If($HTML)
 	{
 		WriteHTMLLine 3 0 "Appendix R - Citrix Installed Components"
+		$rowdata = @()
 	}
 	
 	$Save = ""
@@ -11382,6 +11739,11 @@ Function OutputAppendixR
 			{
 				If($MSWord -or $PDF)
 				{
+					$WordTableRowHash = @{ 
+					DisplayName    = "";
+					DisplayVersion = "";
+					PVSServerName  = "";}
+					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
 				{
@@ -11389,11 +11751,20 @@ Function OutputAppendixR
 				}
 				If($HTML)
 				{
+					$rowdata += @(,(
+					"",$htmlwhite,
+					"",$htmlwhite,
+					"",$htmlwhite))
 				}
 			}
 
 			If($MSWord -or $PDF)
 			{
+				$WordTableRowHash = @{ 
+				DisplayName    = $Item.DisplayName;
+				DisplayVersion = $Item.DisplayVersion;
+				PVSServerName  = $Item.PVSServerName;}
+				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
@@ -11402,6 +11773,10 @@ Function OutputAppendixR
 			}
 			If($HTML)
 			{
+				$rowdata += @(,(
+				$Item.DisplayName,$htmlwhite,
+				$Item.DisplayVersion,$htmlwhite,
+				$Item.PVSServerName,$htmlwhite))
 			}
 			
 			$Save = "$($Item.DisplayName)$($Item.DisplayVersion)"
@@ -11435,6 +11810,23 @@ Function OutputAppendixR
 	
 	If($MSWord -or $PDF)
 	{
+		$Table = AddWordTable -Hashtable $ItemsWordTable `
+		-Columns DisplayName, 
+			DisplayVersion, 
+			PVSServerName	`
+		-Headers "Display Name", 
+			"Display Version", 
+			"PVS Server Name" `
+		-AutoFit $wdAutoFitContent;
+
+		SetWordCellFormat -Collection $Table -Size 9 -BackgroundColor $wdColorWhite
+		SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+		$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+		FindWordDocumentEnd
+		$Table = $Null
+		$ItemsWordTable = $Null
 	}
 	If($Text)
 	{
@@ -11442,6 +11834,14 @@ Function OutputAppendixR
 	}
 	If($HTML)
 	{
+		$columnHeaders = @(
+			"Display Name", ($htmlsilver -bor $htmlbold),
+			"Display Version", ($htmlsilver -bor $htmlbold),
+			"PVS Server Name",($htmlsilver -bor $htmlbold))
+						
+		$msg = ""
+		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+		WriteHTMLLine 0 0 " "
 	}
 
 	Write-Verbose "$(Get-Date -Format G): Finished Creating Appendix R Citrix Installed Components"
