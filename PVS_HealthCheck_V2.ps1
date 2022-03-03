@@ -2,12 +2,12 @@
 
 <#
 .SYNOPSIS
-	Creates a basic Health Check of a Citrix PVS 5.x or later farm.
+	Creates a basic Health Check of a Citrix PVS 6.x or later farm.
 .DESCRIPTION
-	Creates a basic health check of a Citrix PVS 5.x or later farm in plain text, 
+	Creates a basic health check of a Citrix PVS 6.x or later farm in plain text, 
 	HTML, Word, or PDF.
 
-	This script has been tested with PVS 6.1 and 2112.
+	This script was tested with PVS 6.1 and 2112.
 
 	Creates a document named after the PVS farm.
 
@@ -26,7 +26,6 @@
 .PARAMETER AdminAddress
 	Specifies the name of a PVS server that the PowerShell script connects to. 
 	Using this parameter requires the script to run from an elevated PowerShell session.
-	Starting with V1.11 of the script, this requirement is now checked.
 
 	This parameter has an alias of AA
 .PARAMETER Domain
@@ -401,9 +400,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.05
+	VERSION: 2 0.06
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 2, 2022
+	LASTEDIT: March 3, 2022
 #>
 
 
@@ -519,6 +518,7 @@ Param(
 #V2.00 is based on 1.24
 #
 #Version 2.00
+#	Added MultiSubnetFailover to Farm Status section
 #	Added the following functions to support Word/PDF and HTML output and new parameters:
 #		AddHTMLTable
 #		AddWordTable
@@ -569,6 +569,9 @@ Param(
 #		the letter T as a time separator, 2-digit hour, 2-digit minute, 2-digit second, and 4-digit millisecond)
 #		For example: 20221225T0840107271
 #	Dropped support for PVS 5. The V1.24 script still supports PVS 5.x
+#	Fixed a bug in Function GetInstalledRolesAndFeatures that didn't handle the condition of no installed Roles or Features
+#		Thanks to Arnaud Pain for reporting this
+#	Format the Farm, Properties, Status section to match the console output
 #	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
 #	Updated the following functions to the latest versions:
 #		AbortScript
@@ -651,9 +654,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2 0.05'
+$script:MyVersion         = 'V2 0.06'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/02/2022"
+$tmpdate                  = [datetime] "03/03/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -4708,6 +4711,22 @@ Function ProcessPVSFarm
 		$xadGroupsEnabled = "Active Directory groups are not used for access rights"
 	}
 	
+	If($Script:PVSFullVersion -ge "7.11")
+	{
+		If($Script:farm.multiSubnetFailover -eq "1")
+		{
+			$MultiSubnetFailover = "True"
+		}
+		Else
+		{
+			$MultiSubnetFailover = "False"
+		}
+	}
+	Else
+	{
+		$MultiSubnetFailover = "No supported on PVS $($Script:PVSFullVersion)"
+	}
+	
 	If($MSWord -or $PDF)
 	{
 		WriteWordLine 2 0 "Status"
@@ -4715,20 +4734,12 @@ Function ProcessPVSFarm
 		[System.Collections.Hashtable[]] $ScriptInformation = @()
 		$ScriptInformation += @{ Data = "Database server"; Value = $Script:farm.databaseServerName; }
 		$ScriptInformation += @{ Data = "Database server IP"; Value = $SQLServerIPAddress; }
-		If(![String]::IsNullOrEmpty($farm.databaseInstanceName))
-		{
-			$ScriptInformation += @{ Data = "Database instance"; Value = $Script:farm.databaseInstanceName; }
-		}
+		$ScriptInformation += @{ Data = "Database instance"; Value = $Script:farm.databaseInstanceName; }
 		$ScriptInformation += @{ Data = "Database"; Value = $Script:farm.databaseName; }
-		If(![String]::IsNullOrEmpty($farm.failoverPartnerServerName))
-		{
-			$ScriptInformation += @{ Data = "Failover Partner Server"; Value = $Script:farm.failoverPartnerServerName; }
-			$ScriptInformation += @{ Data = "Failover Partner Server IP"; Value = $FailoverSQLServerIPAddress; }
-		}
-		If(![String]::IsNullOrEmpty($farm.failoverPartnerInstanceName))
-		{
-			$ScriptInformation += @{ Data = "Failover Partner Instance"; Value = $Script:farm.failoverPartnerServerName; }
-		}
+		$ScriptInformation += @{ Data = "Failover Partner Server"; Value = $Script:farm.failoverPartnerServerName; }
+		$ScriptInformation += @{ Data = "Failover Partner Server IP"; Value = $FailoverSQLServerIPAddress; }
+		$ScriptInformation += @{ Data = "Failover Partner Instance"; Value = $Script:farm.failoverPartnerServerName; }
+		$ScriptInformation += @{ Data = "MultiSubnetFailover"; Value = $MultiSubnetFailover; }
 		$ScriptInformation += @{ Data = $xadGroupsEnabled; Value = ""; }
 		$Table = AddWordTable -Hashtable $ScriptInformation `
 		-Columns Data,Value `
@@ -4750,20 +4761,12 @@ Function ProcessPVSFarm
 		Line 2 "Current status of the farm:"
 		Line 3 "Database server`t`t`t: " $Script:farm.databaseServerName
 		Line 3 "Database server IP`t`t: " $SQLServerIPAddress
-		If(![String]::IsNullOrEmpty($farm.databaseInstanceName))
-		{
-			Line 3 "Database instance`t`t: " $Script:farm.databaseInstanceName
-		}
+		Line 3 "Database instance`t`t: " $Script:farm.databaseInstanceName
 		Line 3 "Database`t`t`t: " $Script:farm.databaseName
-		If(![String]::IsNullOrEmpty($farm.failoverPartnerServerName))
-		{
-			Line 3 "Failover Partner Server`t`t: " $Script:farm.failoverPartnerServerName
-			Line 3 "Failover Partner Server IP`t: " $FailoverSQLServerIPAddress
-		}
-		If(![String]::IsNullOrEmpty($farm.failoverPartnerInstanceName))
-		{
-			Line 3 "Failover Partner Instance`t: " $Script:farm.failoverPartnerInstanceName
-		}
+		Line 3 "Failover Partner Server`t`t: " $Script:farm.failoverPartnerServerName
+		Line 3 "Failover Partner Server IP`t: " $FailoverSQLServerIPAddress
+		Line 3 "Failover Partner Instance`t: " $Script:farm.failoverPartnerInstanceName
+		Line 3 "MultiSubnetFailover`t`t: " $MultiSubnetFailover
 		Line 3 $xadGroupsEnabled
 		Line 0 ""
 	}
@@ -4773,20 +4776,12 @@ Function ProcessPVSFarm
 		$rowdata = @()
 		$columnHeaders = @("Database server",($htmlsilver -bor $htmlbold),$Script:farm.databaseServerName,$htmlwhite)
 		$rowdata += @(,('Database server IP',($htmlsilver -bor $htmlbold),$SQLServerIPAddress,$htmlwhite))
-		If(![String]::IsNullOrEmpty($farm.databaseInstanceName))
-		{
-			$rowdata += @(,('Database instance',($htmlsilver -bor $htmlbold),$Script:farm.databaseInstanceName,$htmlwhite))
-		}
+		$rowdata += @(,('Database instance',($htmlsilver -bor $htmlbold),$Script:farm.databaseInstanceName,$htmlwhite))
 		$rowdata += @(,('Database',($htmlsilver -bor $htmlbold),$Script:farm.databaseName,$htmlwhite))
-		If(![String]::IsNullOrEmpty($farm.failoverPartnerServerName))
-		{
-			$rowdata += @(,('Failover Partner Server',($htmlsilver -bor $htmlbold),$Script:farm.failoverPartnerServerName,$htmlwhite))
-			$rowdata += @(,('Failover Partner Server IP',($htmlsilver -bor $htmlbold),$FailoverSQLServerIPAddress,$htmlwhite))
-		}
-		If(![String]::IsNullOrEmpty($farm.failoverPartnerInstanceName))
-		{
-			$rowdata += @(,('Failover Partner Instance',($htmlsilver -bor $htmlbold),$Script:farm.failoverPartnerInstanceName,$htmlwhite))
-		}
+		$rowdata += @(,('Failover Partner Server',($htmlsilver -bor $htmlbold),$Script:farm.failoverPartnerServerName,$htmlwhite))
+		$rowdata += @(,('Failover Partner Server IP',($htmlsilver -bor $htmlbold),$FailoverSQLServerIPAddress,$htmlwhite))
+		$rowdata += @(,('Failover Partner Instance',($htmlsilver -bor $htmlbold),$Script:farm.failoverPartnerInstanceName,$htmlwhite))
+		$rowdata += @(,('MultiSubnetFailover',($htmlsilver -bor $htmlbold),$MultiSubnetFailover,$htmlwhite))
 		$rowdata += @(,('',($htmlsilver -bor $htmlbold),$xadGroupsEnabled,$htmlwhite))
 		
 		$msg = "Current status of the farm"
@@ -7998,23 +7993,12 @@ Function GetInstalledRolesAndFeatures
 	{
 		#added V1.16 get Windows installed Roles and Features
 		Write-Verbose "$(Get-Date -Format G): `t`t`t`tRetrieving Windows installed Roles and Features"
-		[bool]$GotWinComponents = $True
-		
 		$results = Get-WindowsFeature -ComputerName $ComputerName -EA 0 4> $Null
 		
-		If(!$?)
+		If($? -and $Null -ne $results)
 		{
-			$GotWinComponents = $False
-		}
+			$WinComponents = $results | Where-Object Installed | Select-Object DisplayName,Name,FeatureType | Sort-Object DisplayName 
 		
-		$WinComponents = $results | Where-Object Installed | Select-Object DisplayName,Name,FeatureType | Sort-Object DisplayName 
-		
-		If($GotWinComponents -eq $False)
-		{
-			#do nothing
-		}
-		Else
-		{
 			ForEach($Component in $WinComponents)
 			{
 				$obj1 = [PSCustomObject] @{
