@@ -6,7 +6,11 @@
 #released to the community on 
 #V2.00 is based on 1.24
 #
+
 #Version 2.00
+#	Added MultiSubnetFailover to Farm Status section
+#		Thanks to Arnaud Pain
+#		I can't believe no one has asked for this since PVS 7.11 was released on 14-Sep-2016
 #	Added the following functions to support Word/PDF and HTML output and new parameters:
 #		AddHTMLTable
 #		AddWordTable
@@ -57,6 +61,16 @@
 #		the letter T as a time separator, 2-digit hour, 2-digit minute, 2-digit second, and 4-digit millisecond)
 #		For example: 20221225T0840107271
 #	Dropped support for PVS 5. The V1.24 script still supports PVS 5.x
+#	Fixed a bug in Function GetInstalledRolesAndFeatures that didn't handle the condition of no installed Roles or Features
+#		Thanks to Arnaud Pain for reporting this
+#	Fixed bug when retrieving a Device Collection's Administrators and Operators
+#		I was not comparing to the specific device collection name, which returned all administrators and 
+#		operators for all device collections and not the device collection being processed 
+#	Format the Farm, Properties, Status section to match the console output
+#	In Function GetConfigWizardInfo, fix $PXEServices to work with PVS7+
+#		If DHCPType is equal to 1073741824, then if PXE is set to PVS,
+#		in PVS V6, PXEType is set to 0, but in PVS7, PXEType is set to 1
+#		Updated the function to check for both 0 and 1 values
 #	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
 #	Updated the following functions to the latest versions:
 #		AbortScript

@@ -400,9 +400,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.06
+	VERSION: 2 0.10
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 3, 2022
+	LASTEDIT: March 5, 2022
 #>
 
 
@@ -519,6 +519,8 @@ Param(
 #
 #Version 2.00
 #	Added MultiSubnetFailover to Farm Status section
+#		Thanks to Arnaud Pain
+#		I can't believe no one has asked for this since PVS 7.11 was released on 14-Sep-2016
 #	Added the following functions to support Word/PDF and HTML output and new parameters:
 #		AddHTMLTable
 #		AddWordTable
@@ -571,7 +573,14 @@ Param(
 #	Dropped support for PVS 5. The V1.24 script still supports PVS 5.x
 #	Fixed a bug in Function GetInstalledRolesAndFeatures that didn't handle the condition of no installed Roles or Features
 #		Thanks to Arnaud Pain for reporting this
+#	Fixed bug when retrieving a Device Collection's Administrators and Operators
+#		I was not comparing to the specific device collection name, which returned all administrators and 
+#		operators for all device collections and not the device collection being processed 
 #	Format the Farm, Properties, Status section to match the console output
+#	In Function GetConfigWizardInfo, fix $PXEServices to work with PVS7+
+#		If DHCPType is equal to 1073741824, then if PXE is set to PVS,
+#		in PVS V6, PXEType is set to 0, but in PVS7, PXEType is set to 1
+#		Updated the function to check for both 0 and 1 values
 #	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
 #	Updated the following functions to the latest versions:
 #		AbortScript
@@ -654,9 +663,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2 0.06'
+$script:MyVersion         = 'V2 0.10'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/03/2022"
+$tmpdate                  = [datetime] "03/05/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -4173,7 +4182,6 @@ Function OutputauthGroups
 	If($MSWord -or $PDF)
 	{
 		[System.Collections.Hashtable[]] $AuthWordTable = @();
-		[int] $CurrentServiceIndex = 1;
 	}
 	If($HTML)
 	{
@@ -4188,7 +4196,6 @@ Function OutputauthGroups
 			{
 				$WordTableRowHash = @{Name = $Group.authGroupName;}
 				$AuthWordTable += $WordTableRowHash;
-				$CurrentServiceIndex++;
 			}
 			If($Text)
 			{
@@ -4865,63 +4872,168 @@ Function DeviceStatus
 
 	If($Null -eq $xDevice -or $xDevice.status -eq "" -or $xDevice.status -eq "0")
 	{
-		Line 3 "Target device inactive"
+		If($MSWord -or $PDF)
+		{
+			WriteWordLine 0 0 "Target device inactive"
+			WriteWordLine 0 0 ""
+		}
+		If($Text)
+		{
+			Line 3 "Target device inactive"
+			Line 0 ""
+		}
+		If($HTML)
+		{
+			WriteHTMLLine 0 0 "Target device inactive"
+			WriteHTMLLine 0 0 ""
+		}
 	}
 	Else
 	{
-		Line 2 "Target device active"
-		Line 3 "IP Address: " $xDevice.ip
-		Line 3 "Server: $($xDevice.serverName)"
-		Line 3 "Server IP: $($xDevice.serverIpConnection)"
-		Line 3 "Server Port: $($xDevice.serverPortConnection)"
-		Line 3 "vDisk: " $xDevice.diskLocatorName
-		Line 3 "vDisk version: " $xDevice.diskVersion
-		Line 3 "vDisk name: " $xDevice.diskFileName
-		Line 3 "vDisk access: " -nonewline
 		Switch ($xDevice.diskVersionAccess)
 		{
-			0 {Line 0 "Production"; Break}
-			1 {Line 0 "Test"; Break}
-			2 {Line 0 "Maintenance"; Break}
-			3 {Line 0 "Personal vDisk"; Break}
-			Default {Line 0 "vDisk access type could not be determined: $($xDevice.diskVersionAccess)"; Break}
+			0 		{$xDevicediskVersionAccess = "Production"; Break}
+			1 		{$xDevicediskVersionAccess = "Test"; Break}
+			2 		{$xDevicediskVersionAccess = "Maintenance"; Break}
+			3 		{$xDevicediskVersionAccess = "Personal vDisk"; Break}
+			Default {$xDevicediskVersionAccess = "vDisk access type could not be determined: $($xDevice.diskVersionAccess)"; Break}
 		}
-		If($PVSVersion -eq "7")
+
+		If($Script:PVSVersion -eq "7")
 		{
-			Line 3 "Local write cache disk:$($xDevice.localWriteCacheDiskSize)GB"
-			Line 3 "Boot mode:" -nonewline
-			Switch($xDevice.bdmBoot)
+			Switch ($xDevice.bdmBoot)
 			{
-				0 {Line 0 "PXE boot"; Break}
-				1 {Line 0 "BDM disk"; Break}
-				Default {Line 0 "Boot mode could not be determined: $($xDevice.bdmBoot)"; Break}
+				0 		{$xDevicebdmBoot = "PXE boot"; Break}
+				1 		{$xDevicebdmBoot = "BDM disk"; Break}
+				Default {$xDevicebdmBoot = "Boot mode could not be determined: $($xDevice.bdmBoot)"; Break}
 			}
 		}
-		Switch($xDevice.licenseType)
+
+		Switch ($xDevice.licenseType)
 		{
-			0 {Line 3 "No License"; Break}
-			1 {Line 3 "Desktop License"; Break}
-			2 {Line 3 "Server License"; Break}
-			5 {Line 3 "OEM SmartClient License"; Break}
-			6 {Line 3 "XenApp License"; Break}
-			7 {Line 3 "XenDesktop License"; Break}
-			Default {Line 0 "Device license type could not be determined: $($xDevice.licenseType)"; Break}
+			0 		{$xDevicelicenseType = "No License"; Break}
+			1 		{$xDevicelicenseType = "Desktop License"; Break}
+			2 		{$xDevicelicenseType = "Server License"; Break}
+			5 		{$xDevicelicenseType = "OEM SmartClient License"; Break}
+			6 		{$xDevicelicenseType = "XenApp License"; Break}
+			7 		{$xDevicelicenseType = "XenDesktop License"; Break}
+			Default {$xDevicelicenseType = "Device license type could not be determined: $($xDevice.licenseType)"; Break}
 		}
-		
-		Line 3 "Logging level: " -nonewline
+
 		Switch ($xDevice.logLevel)
 		{
-			0   {Line 0 "Off"; Break}
-			1   {Line 0 "Fatal"; Break}
-			2   {Line 0 "Error"; Break}
-			3   {Line 0 "Warning"; Break}
-			4   {Line 0 "Info"; Break}
-			5   {Line 0 "Debug"; Break}
-			6   {Line 0 "Trace"; Break}
-			Default {Line 0 "Logging level could not be determined: $($xDevice.logLevel)"; Break}
+			0   	{$xDevicelogLevel = "Off"; Break}
+			1   	{$xDevicelogLevel = "Fatal"; Break}
+			2   	{$xDevicelogLevel = "Error"; Break}
+			3   	{$xDevicelogLevel = "Warning"; Break}
+			4   	{$xDevicelogLevel = "Info"; Break}
+			5   	{$xDevicelogLevel = "Debug"; Break}
+			6   	{$xDevicelogLevel = "Trace"; Break}
+			Default {$xDevicelogLevel = "Logging level could not be determined: $($xDevice.logLevel)"; Break}
+		}
+
+		If($MSWord -or $PDF)
+		{
+			[System.Collections.Hashtable[]] $ScriptInformation = @()
+			$ScriptInformation += @{ Data = "Target device active"; Value = ""; }
+			$ScriptInformation += @{ Data = "IP Address"; Value = $xDevice.ip; }
+			$ScriptInformation += @{ Data = "Server"; Value = "$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)"; }
+			$ScriptInformation += @{ Data = "Retries"; Value = $xDevice.status; }
+			$ScriptInformation += @{ Data = "vDisk"; Value = $xDevice.diskLocatorName; }
+			$ScriptInformation += @{ Data = "vDisk version"; Value = $xDevice.diskVersion; }
+			$ScriptInformation += @{ Data = "vDisk name"; Value = $xDevice.diskFileName; }
+			$ScriptInformation += @{ Data = "vDisk access"; Value = $xDevicediskVersionAccess; }
+			If($Script:PVSVersion -eq "7")
+			{
+				$ScriptInformation += @{ Data = "Local write cache disk"; Value = "$($xDevice.localWriteCacheDiskSize)GB"; }
+				$ScriptInformation += @{ Data = "Boot mode"; Value = $xDevicebdmBoot; }
+			}
+			$ScriptInformation += @{ Data = $xDevicelicenseType; Value = ""; }
+			$Table = AddWordTable -Hashtable $ScriptInformation `
+			-Columns Data,Value `
+			-List `
+			-Format $wdTableGrid `
+			-AutoFit $wdAutoFitContent;
+
+			SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+			$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+			FindWordDocumentEnd
+			$Table = $Null
+			WriteWordLine 0 0 ""
+			
+			WriteWordLine 4 0 "Logging"
+			
+			[System.Collections.Hashtable[]] $ScriptInformation = @()
+			$ScriptInformation += @{ Data = "Logging level"; Value = $xDevicelogLevel; }
+
+			$Table = AddWordTable -Hashtable $ScriptInformation `
+			-Columns Data,Value `
+			-List `
+			-Format $wdTableGrid `
+			-AutoFit $wdAutoFitContent;
+
+			SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+			$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+			FindWordDocumentEnd
+			$Table = $Null
+			WriteWordLine 0 0 ""
+		}
+		If($Text)
+		{
+			Line 3 "Target device active"
+			Line 3 "IP Address`t`t: " $xDevice.ip
+			Line 3 "Server`t`t`t: " "$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)"
+			Line 3 "Retries`t`t`t: " $xDevice.status
+			Line 3 "vDisk`t`t`t: " $xDevice.diskLocatorName
+			Line 3 "vDisk version`t`t: " $xDevice.diskVersion
+			Line 3 "vDisk name`t`t: " $xDevice.diskFileName
+			Line 3 "vDisk access`t`t: " $xDevicediskVersionAccess
+			If($Script:PVSVersion -eq "7")
+			{
+				Line 3 "Local write cache disk`t:$($xDevice.localWriteCacheDiskSize)GB"
+				Line 3 "Boot mode`t`t:" $xDevicebdmBoot
+			}
+			Line 3 $xDevicelicenseType
+			
+			Line 2 "Logging"
+			Line 3 "Logging level`t`t: " $xDevicelogLevel
+			
+			Line 0 ""
+		}
+		If($HTML)
+		{
+			$rowdata = @()
+			$columnHeaders = @("Target device active",($htmlsilver -bor $htmlbold),"",$htmlwhite)
+			$rowdata += @(,('IP Address',($htmlsilver -bor $htmlbold),$xDevice.ip,$htmlwhite))
+			$rowdata += @(,('Server',($htmlsilver -bor $htmlbold),"$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)",$htmlwhite))
+			$rowdata += @(,('Retries',($htmlsilver -bor $htmlbold),$xDevice.status,$htmlwhite))
+			$rowdata += @(,('vDisk',($htmlsilver -bor $htmlbold),$xDevice.diskLocatorName,$htmlwhite))
+			$rowdata += @(,('vDisk version',($htmlsilver -bor $htmlbold),$xDevice.diskVersion,$htmlwhite))
+			$rowdata += @(,('vDisk name',($htmlsilver -bor $htmlbold),$xDevice.diskFileName,$htmlwhite))
+			$rowdata += @(,('vDisk access',($htmlsilver -bor $htmlbold),$xDevicediskVersionAccess,$htmlwhite))
+			If($Script:PVSVersion -eq "7")
+			{
+				$rowdata += @(,('Local write cache disk',($htmlsilver -bor $htmlbold),"$($xDevice.localWriteCacheDiskSize)GB",$htmlwhite))
+				$rowdata += @(,('Boot mode',($htmlsilver -bor $htmlbold),$xDevicebdmBoot,$htmlwhite))
+			}
+			$rowdata += @(,($xDevicelicenseType,($htmlsilver -bor $htmlbold),"",$htmlwhite))
+
+			$msg = ""
+			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+			WriteHTMLLine 0 0 " "
+			
+			$rowdata = @()
+			$columnHeaders = @("Logging level",($htmlsilver -bor $htmlbold),$xDevicelogLevel,$htmlwhite)
+
+			$msg = "Logging"
+			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+			WriteHTMLLine 0 0 " "
 		}
 	}
-	Line 0 ""
 }
 
 Function ProcessPVSSite
@@ -5501,12 +5613,35 @@ Function ProcessPVSSite
 
 			If($Null -ne $Collections)
 			{
-				Line 1 "Device Collections"
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 2 0 "Device Collections"
+				}
+				If($Text)
+				{
+					Line 0 "Device Collections"
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 2 0 "Device Collections"
+				}
+
 				ForEach($Collection in $Collections)
 				{
 					Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing Collection $($Collection.collectionName)"
 					Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing General Tab"
-					Line 2 "Name: " $Collection.collectionName
+					If($MSWord -or $PDF)
+					{
+						WriteWordLine 3 0 "Name: " $Collection.collectionName
+					}
+					If($Text)
+					{
+						Line 2 "Name: " $Collection.collectionName
+					}
+					If($HTML)
+					{
+						WriteHTMLLine 3 0 "Name: " $Collection.collectionName
+					}
 
 					Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Security Tab"
 					$Temp = $Collection.collectionId
@@ -5518,7 +5653,21 @@ Function ProcessPVSSite
 					$DeviceAdmins = $False
 					If($Null -ne $AuthGroups)
 					{
-						Line 3 "Groups with 'Device Administrator' access`t:"
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 0 0 "Groups with 'Device Administrator' access"
+							[System.Collections.Hashtable[]] $AuthWordTable = @();
+						}
+						If($Text)
+						{
+							Line 3 "Groups with 'Device Administrator' access`t:"
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "Groups with 'Device Administrator' access:"
+							$rowdata = @()
+						}
+
 						ForEach($AuthGroup in $AuthGroups)
 						{
 							$Temp = $authgroup.authGroupName
@@ -5530,24 +5679,94 @@ Function ProcessPVSSite
 							{
 								ForEach($AuthGroupUsage in $AuthGroupUsages)
 								{
-									If($AuthGroupUsage.role -eq "300")
+									If($AuthGroupUsage.role -eq "300" -and $AuthGroupUsage.Name -eq $Collection.collectionName)
 									{
 										$DeviceAdmins = $True
-										Line 9 "  " $authgroup.authGroupName
+										If($MSword -or $PDF)
+										{
+											$WordTableRowHash = @{Name = $AuthGroup.authGroupName;}
+											$AuthWordTable += $WordTableRowHash;
+										}
+										If($Text)
+										{
+											Line 9 "  " $AuthGroup.authGroupName
+										}
+										If($HTML)
+										{
+											$rowdata += @(,(
+											$AuthGroup.authGroupName,$htmlwhite))
+										}
 									}
 								}
 							}
 						}
+								
+						If($MSword -or $PDF)
+						{
+							If($AuthWordTable.Count -gt 0)
+							{
+								$Table = AddWordTable -Hashtable $AuthWordTable `
+								-Columns Name `
+								-Format $wdTableGrid `
+								-AutoFit $wdAutoFitContent;
+
+								SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+								$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+								FindWordDocumentEnd
+								$Table = $Null
+								WriteWordLine 0 0 ""
+							}
+						}
+						If($Text)
+						{
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							$columnHeaders = @(
+							'Name',($htmlsilver -bor $htmlbold))
+							
+							$msg = ""
+							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+						}
 					}
 					If(!$DeviceAdmins)
 					{
-						Line 3 "Groups with 'Device Administrator' access`t: None defined"
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 0 0 "Groups with 'Device Administrator' access: None defined"
+						}
+						If($Text)
+						{
+							Line 3 "Groups with 'Device Administrator' access`t: None defined"
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "Groups with 'Device Administrator' access: None defined"
+						}
 					}
 
 					$DeviceOperators = $False
 					If($Null -ne $AuthGroups)
 					{
-						Line 3 "Groups with 'Device Operator' access`t`t:"
+						Line 3 ""
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 0 0 "Groups with 'Device Operator' access:"
+							[System.Collections.Hashtable[]] $AuthWordTable = @();
+						}
+						If($Text)
+						{
+							Line 3 "Groups with 'Device Operator' access`t`t:"
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "Groups with 'Device Operator' access:"
+							$rowdata = @()
+						}
+
 						ForEach($AuthGroup in $AuthGroups)
 						{
 							$Temp = $authgroup.authGroupName
@@ -5559,53 +5778,174 @@ Function ProcessPVSSite
 							{
 								ForEach($AuthGroupUsage in $AuthGroupUsages)
 								{
-									If($AuthGroupUsage.role -eq "400")
+									If($AuthGroupUsage.role -eq "400" -and $AuthGroupUsage.Name -eq $Collection.collectionName)
 									{
 										$DeviceOperators = $True
-										Line 9 "  " $authgroup.authGroupName
+										If($MSword -or $PDF)
+										{
+											$WordTableRowHash = @{Name = $AuthGroup.authGroupName;}
+											$AuthWordTable += $WordTableRowHash;
+										}
+										If($Text)
+										{
+											Line 9 "  " $AuthGroup.authGroupName
+										}
+										If($HTML)
+										{
+											$rowdata += @(,(
+											$AuthGroup.authGroupName,$htmlwhite))
+										}
 									}
 								}
 							}
 						}
+								
+						If($MSword -or $PDF)
+						{
+							If($AuthWordTable.Count -gt 0)
+							{
+								$Table = AddWordTable -Hashtable $AuthWordTable `
+								-Columns Name `
+								-Format $wdTableGrid `
+								-AutoFit $wdAutoFitContent;
+
+								SetWordCellFormat -Collection $Table.Rows.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+								$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+								FindWordDocumentEnd
+								$Table = $Null
+								WriteWordLine 0 0 ""
+							}
+						}
+						If($Text)
+						{
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							$columnHeaders = @(
+							'Name',($htmlsilver -bor $htmlbold))
+							
+							$msg = ""
+							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+						}
 					}
 					If(!$DeviceOperators)
 					{
-						Line 3 "Groups with 'Device Operator' access`t`t: None defined"
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 0 0 "Groups with 'Device Operator' access: None defined"
+						}
+						If($Text)
+						{
+							Line 3 "Groups with 'Device Operator' access`t: None defined"
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "Groups with 'Device Operator' access: None defined"
+						}
 					}
 
 					Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Auto-Add Tab"
+					If($MSWord -or $PDF)
+					{
+						WriteWordLine 0 0 "Auto-Add"
+					}
+					If($Text)
+					{
+						Line 1 "Auto-Add"
+					}
+
 					If($Script:FarmAutoAddEnabled)
 					{
-						Line 3 "Template target device`t`t`t`t: " $Collection.templateDeviceName
-						If(![String]::IsNullOrEmpty($Collection.autoAddPrefix) -or ![String]::IsNullOrEmpty($Collection.autoAddPrefix))
+						If($Collection.autoAddZeroFill)
 						{
-							Line 4 "Device Name"
-						}
-						If(![String]::IsNullOrEmpty($Collection.autoAddPrefix))
-						{
-							Line 5 "Prefix`t`t`t: " $Collection.autoAddPrefix
-						}
-						Line 5 "Length`t`t`t: " $Collection.autoAddNumberLength
-						Line 5 "Zero fill`t`t: " -nonewline
-						If($Collection.autoAddZeroFill -eq "1")
-						{
-							Line 0 "Yes"
+							$autoAddZeroFill = "Yes"
 						}
 						Else
 						{
-							Line 0 "No"
+							$autoAddZeroFill = "No"
 						}
-						If(![String]::IsNullOrEmpty($Collection.autoAddPrefix))
+						If([String]::IsNullOrEmpty($Collection.templateDeviceName))
 						{
-							Line 5 "Suffix`t`t`t: " $Collection.autoAddSuffix
+							$TDN = "No template device"
 						}
-						Line 5 "Last incremental #`t: " $Collection.lastAutoAddDeviceNumber
+						Else
+						{
+							$TDN = $Collection.templateDeviceName
+						}
+
+						If($MSWord -or $PDF)
+						{
+							[System.Collections.Hashtable[]] $ScriptInformation = @()
+							$ScriptInformation += @{ Data = "Template target device"; Value = $TDN; }
+							$ScriptInformation += @{ Data = "Device Name"; Value = ""; }
+							$ScriptInformation += @{ Data = "     Prefix"; Value = $Collection.autoAddPrefix; }
+							$ScriptInformation += @{ Data = "     Length"; Value = $Collection.autoAddNumberLength; }
+							$ScriptInformation += @{ Data = "     Zero fill"; Value = $autoAddZeroFill; }
+							$ScriptInformation += @{ Data = "     Suffix"; Value = $Collection.autoAddSuffix; }
+							$ScriptInformation += @{ Data = "     Last incremental #"; Value = $Collection.lastAutoAddDeviceNumber; }
+
+							$Table = AddWordTable -Hashtable $ScriptInformation `
+							-Columns Data,Value `
+							-List `
+							-Format $wdTableGrid `
+							-AutoFit $wdAutoFitContent;
+
+							SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+							$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+							FindWordDocumentEnd
+							$Table = $Null
+							WriteWordLine 0 0 ""
+						}
+						If($Text)
+						{
+							Line 3 "Template target device`t`t: " $TDN
+							Line 4 "Device Name"
+							Line 5 "Prefix`t`t`t: " $Collection.autoAddPrefix
+							Line 5 "Length`t`t`t: " $Collection.autoAddNumberLength
+							Line 5 "Zero fill`t`t: " $autoAddZeroFill
+							Line 5 "Suffix`t`t`t: " $Collection.autoAddSuffix
+							Line 5 "Last incremental #`t: " $Collection.lastAutoAddDeviceNumber
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							$rowdata = @()
+							$columnHeaders = @("Template target device",($htmlsilver -bor $htmlbold),$TDN,$htmlwhite)
+							$rowdata += @(,('Device Name',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+							$rowdata += @(,('     Prefix',($htmlsilver -bor $htmlbold),$Collection.autoAddPrefix,$htmlwhite))
+							$rowdata += @(,('     Length',($htmlsilver -bor $htmlbold),$Collection.autoAddNumberLength,$htmlwhite))
+							$rowdata += @(,('     Zero fill',($htmlsilver -bor $htmlbold),$autoAddZeroFill,$htmlwhite))
+							$rowdata += @(,('     Suffix',($htmlsilver -bor $htmlbold),$Collection.autoAddSuffix,$htmlwhite))
+							$rowdata += @(,('     Last incremental #',($htmlsilver -bor $htmlbold),$Collection.lastAutoAddDeviceNumber,$htmlwhite))
+							
+							$msg = "Auto-Add"
+							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+						}
 					}
 					Else
 					{
-						Line 3 "The auto-add feature is not enabled at the PVS Farm level"
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 0 0 "The auto-add feature is not enabled at the PVS Farm level"
+							WriteWordLine 0 0 ""
+						}
+						If($Text)
+						{
+							Line 3 "The auto-add feature is not enabled at the PVS Farm level"
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "The auto-add feature is not enabled at the PVS Farm level"
+							WriteHTMLLine 0 0 ""
+						}
 					}
-					#for each collection process each device
+					#for each collection process the first device
 					Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing the first device in each collection"
 					$Temp = $Collection.collectionId
 					$GetWhat = "deviceInfo"
@@ -5618,58 +5958,193 @@ Function ProcessPVSSite
 						Line 0 ""
 						$Device = $Devices[0]
 						Write-Verbose "$(Get-Date -Format G): `t`t`t`t`tProcessing Device $($Device.deviceName)"
-						If($Device.type -eq "3")
+
+						If($Device.type -eq 3)
 						{
-							Line 3 "Device with Personal vDisk Properties"
+							$txt = "Device with Personal vDisk Properties"
 						}
 						Else
 						{
-							Line 3 "Target Device Properties"
+							$txt = "Target Device Properties"
 						}
-						Write-Verbose "$(Get-Date -Format G): `t`t`t`t`t`tProcessing General Tab"
-						Line 4 "Name`t`t`t`t`t: " $Device.deviceName
-						If(($PVSVersion -eq "6" -or $PVSVersion -eq "7") -and $Device.type -ne "3")
+
+						If($MSWord -or $PDF)
 						{
-							Line 4 "Type`t`t`t`t`t: " -nonewline
+							WriteWordLine 2 0 $txt
+						}
+						If($Text)
+						{
+							Line 0 $txt
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 2 0 $txt
+						}
+
+						Write-Verbose "$(Get-Date -Format G): `t`t`t`t`t`tProcessing General Tab"
+						If($Device.type -ne "3")
+						{
 							Switch ($Device.type)
 							{
-								0 {Line 0 "Production"; Break}
-								1 {Line 0 "Test"; Break}
-								2 {Line 0 "Maintenance"; Break}
-								3 {Line 0 "Personal vDisk"; Break}
-								Default {Line 0 "Device type could not be determined: $($Device.type)"; Break}
+								0 		{$DeviceType = "Production"; Break }
+								1 		{$DeviceType = "Test"; Break }
+								2 		{$DeviceType = "Maintenance"; Break }
+								3 		{$DeviceType = "Personal vDisk"; Break }
+								Default {$DeviceType = "Device type could not be determined: $($Device.type)"; Break }
 							}
-						}
-						If($Device.type -ne "3")
-						{
-							Line 4 "Boot from`t`t`t`t: " -nonewline
 							Switch ($Device.bootFrom)
 							{
-								1 {Line 0 "vDisk"; Break}
-								2 {Line 0 "Hard Disk"; Break}
-								3 {Line 0 "Floppy Disk"; Break}
-								Default {Line 0 "Boot from could not be determined: $($Device.bootFrom)"; Break}
+								1 		{$DeviceBootFrom = "vDisk"; Break }
+								2 		{$DeviceBootFrom = "Hard Disk"; Break }
+								3 		{$DeviceBootFrom = "Floppy Disk"; Break }
+								Default {$DeviceBootFrom = "Boot from could not be determined: $($Device.bootFrom)"; Break }
 							}
-						}
-						Line 4 "Port`t`t`t`t`t: " $Device.port
-						If($Device.type -ne "3")
-						{
-							Line 4 "Disabled`t`t`t`t: " -nonewline
 							If($Device.enabled -eq "1")
 							{
-								Line 0 "No"
+								$DeviceEnabled = "Unchecked"
 							}
 							Else
 							{
-								Line 0 "Yes"
+								$DeviceEnabled = "Checked"
 							}
+						}
+						If($Device.localDiskEnabled -eq "1")
+						{
+							$DevicelocalDiskEnabled = "Yes"
 						}
 						Else
 						{
-							Line 4 "vDisk`t`t`t`t`t: " $Device.diskLocatorName
-							Line 4 "Personal vDisk Drive`t`t`t: " $Device.pvdDriveLetter
+							$DevicelocalDiskEnabled = "No"
 						}
+						Switch ($Device.authentication)
+						{
+							0 		{$DeviceAuthentication = "None"; Break }
+							1 		{$DeviceAuthentication = "Username and password"; Break }
+							2 		{$DeviceAuthentication = "External verification (User supplied method)"; Break }
+							Default {$DeviceAuthentication = "Authentication type could not be determined: $($Device.authentication)"; Break }
+						}
+
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 3 0 "General"
+							[System.Collections.Hashtable[]] $ScriptInformation = @()
+							$ScriptInformation += @{ Data = "Name"; Value = $Device.deviceName; }
+
+							If($Device.type -ne "3")
+							{
+								$ScriptInformation += @{ Data = "Type"; Value = $DeviceType; }
+								$ScriptInformation += @{ Data = "Boot from"; Value = $DeviceBootFrom; }
+							}
+
+							$ScriptInformation += @{ Data = "MAC"; Value = $Device.deviceMac; }
+							$ScriptInformation += @{ Data = "Port"; Value = $Device.port; }
+							
+							If($Device.type -ne "3")
+							{
+								$ScriptInformation += @{ Data = "Class"; Value = $Device.className; }
+								$ScriptInformation += @{ Data = "Disable this device"; Value = $DeviceEnabled; }
+							}
+							Else
+							{
+								$ScriptInformation += @{ Data = "vDisk"; Value = $Device.diskLocatorName; }
+								$ScriptInformation += @{ Data = "Personal vDisk Drive"; Value = $Device.pvdDriveLetter; }
+							}
+
+							If($Script:Version -ge "7.12" -and $Device.XsPvsProxyUuid -ne "00000000-0000-0000-0000-000000000000")
+							{
+								$ScriptInformation += @{ Data = "Configured for XenServer vDisk caching"; Value = " "; }
+							}
+							
+							$Table = AddWordTable -Hashtable $ScriptInformation `
+							-Columns Data,Value `
+							-List `
+							-Format $wdTableGrid `
+							-AutoFit $wdAutoFitContent;
+
+							SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+							$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+							FindWordDocumentEnd
+							$Table = $Null
+							WriteWordLine 0 0 ""
+						}
+						If($Text)
+						{
+							Line 1 "General"
+							Line 2 "Name`t`t`t: " $Device.deviceName
+
+							If($Device.type -ne 3)
+							{
+								Line 2 "Type`t`t`t: " $DeviceType
+								Line 2 "Boot from`t`t: " $DeviceBootFrom
+							}
+
+							Line 2 "MAC`t`t`t: " $Device.deviceMac
+							Line 2 "Port`t`t`t: " $Device.port
+							
+							If($Device.type -ne 3)
+							{
+								Line 2 "Class`t`t`t: " $Device.className
+								Line 2 "Disable this device`t: " $DeviceEnabled
+							}
+							Else
+							{
+								Line 2 "vDisk`t`t`t: " $Device.diskLocatorName
+								Line 2 "Personal vDisk Drive`t: " $Device.pvdDriveLetter
+							}
+
+							If($Script:Version -ge "7.12" -and $Device.XsPvsProxyUuid -ne "00000000-0000-0000-0000-000000000000")
+							{
+								Line 2 "Configured for XenServer vDisk caching"
+							}
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							$rowdata = @()
+							$columnHeaders = @("Name",($htmlsilver -bor $htmlbold),$Device.deviceName,$htmlwhite)
+
+							If($Device.type -ne "3")
+							{
+								$rowdata += @(,('Type',($htmlsilver -bor $htmlbold),$DeviceType,$htmlwhite))
+								$rowdata += @(,('Boot from',($htmlsilver -bor $htmlbold),$DeviceBootFrom,$htmlwhite))
+							}
+
+							$rowdata += @(,('MAC',($htmlsilver -bor $htmlbold),$Device.deviceMac,$htmlwhite))
+							$rowdata += @(,('Port',($htmlsilver -bor $htmlbold),$Device.port,$htmlwhite))
+							
+							If($Device.type -ne "3")
+							{
+								$rowdata += @(,('Class',($htmlsilver -bor $htmlbold),$Device.className,$htmlwhite))
+								$rowdata += @(,('Disable this device',($htmlsilver -bor $htmlbold),$DeviceEnabled,$htmlwhite))
+							}
+							Else
+							{
+								$rowdata += @(,('vDisk',($htmlsilver -bor $htmlbold),$Device.diskLocatorName,$htmlwhite))
+								$rowdata += @(,('Personal vDisk Drive',($htmlsilver -bor $htmlbold),$Device.pvdDriveLetter,$htmlwhite))
+							}
+
+							If($Script:Version -ge "7.12" -and $Device.XsPvsProxyUuid -ne "00000000-0000-0000-0000-000000000000")
+							{
+								$rowdata += @(,('Configured for XenServer vDisk caching',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+							}
+						
+							$msg = "General"
+							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+							WriteHTMLLine 0 0 " "
+						}
+
 						Write-Verbose "$(Get-Date -Format G): `t`t`t`t`t`tProcessing vDisks Tab"
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 3 0 "vDisks"
+						}
+						If($Text)
+						{
+							Line 0 "vDisks"
+						}
+
 						#process all vdisks for this device
 						$Temp = $Device.deviceName
 						$GetWhat = "DiskInfo"
@@ -5678,27 +6153,105 @@ Function ProcessPVSSite
 						$vDisks = BuildPVSObject $GetWhat $GetParam $ErrorTxt
 						If($Null -ne $vDisks)
 						{
+							$vDiskArray = @()
 							ForEach($vDisk in $vDisks)
 							{
-								Line 4 "vDisk Name`t`t`t`t: $($vDisk.storeName)`\$($vDisk.diskLocatorName)"
+								$vDiskArray += "$($vDisk.storeName)`\$($vDisk.diskLocatorName)"
+							}
+							
+							If($MSWord -or $PDF)
+							{
+								[System.Collections.Hashtable[]] $ScriptInformation = @()
+								$ScriptInformation += @{ Data = "Name"; Value = $vDiskarray[0]; }
+								$cnt = -1
+								ForEach($tmp in $vDiskArray)
+								{
+									$cnt++
+									If($cnt -gt 0)
+									{
+										$ScriptInformation += @{ Data = ""; Value = $tmp; }
+									}
+								}
+
+								$Table = AddWordTable -Hashtable $ScriptInformation `
+								-Columns Data,Value `
+								-List `
+								-Format $wdTableGrid `
+								-AutoFit $wdAutoFitContent;
+
+								SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+								$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+								FindWordDocumentEnd
+								$Table = $Null
+								WriteWordLine 0 0 ""
+							}
+							If($Text)
+							{
+								Line 3 "Name: " $vDiskArray[0]
+								$cnt = -1
+								ForEach($tmp in $vDiskArray)
+								{
+									$cnt++
+									If($cnt -gt 0)
+									{
+										Line 5 "  " $tmp
+									}
+								}
+							}
+							If($HTML)
+							{
+								$rowdata = @()
+								$columnHeaders = @("Name",($htmlsilver -bor $htmlbold),$vDiskArray[0],$htmlwhite)
+								$cnt = -1
+								ForEach($tmp in $vDiskArray)
+								{
+									$cnt++
+									If($cnt -gt 0)
+									{
+										$rowdata += @(,('',($htmlsilver -bor $htmlbold),$tmp,$htmlwhite))
+									}
+								}
+						
+								$msg = "vDisks"
+								FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+								WriteHTMLLine 0 0 " "
 							}
 						}
-						Line 4 "List local hard drive in boot menu`t: " -nonewline
-						If($Device.localDiskEnabled -eq "1")
+
+						If($MSWord -or $PDF)
 						{
-							Line 0 "Yes"
+							WriteWordLine 0 0 "List local hard drive in boot menu`t: " $DevicelocalDiskEnabled
 						}
-						Else
+						If($Text)
 						{
-							Line 0 "No"
+							Line 4 "List local hard drive in boot menu`t: " $DevicelocalDiskEnabled
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "List local hard drive in boot menu`t: " $DevicelocalDiskEnabled
 						}
 						
 						DeviceStatus $Device
 					}
 					Else
 					{
-						Line 3 "No Target Devices found. Device Collection is empty."
-						Line 0 ""
+						If($MSWord -or $PDF)
+						{
+							WriteWordLine 0 0 "No Target Devices found. Device Collection is empty."
+							WriteWordLine 0 0 ""
+						}
+						If($Text)
+						{
+							Line 3 "No Target Devices found. Device Collection is empty."
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							WriteHTMLLine 0 0 "No Target Devices found. Device Collection is empty."
+							WriteHTMLLine 0 0 ""
+						}
 						$obj1 = [PSCustomObject] @{
 							CollectionName = $Collection.collectionName
 						}
@@ -8774,12 +9327,6 @@ Function ProcessvDisksinFarm
 			$ScriptInformation += @{ Data = "Recommended RAM for each PVS Server using XenDesktop vDisks"; Value = "$($XDRecRAM)GB"; }
 			$ScriptInformation += @{ Data = "Recommended RAM for each PVS Server using XenApp vDisks"; Value = "$($XARecRAM)GB"; }
 			$ScriptInformation += @{ Data = "Recommended RAM for each PVS Server using XA & XD vDisks"; Value = "$($XDXARecRAM)GB"; }
-			$ScriptInformation += @{ Data = ""; Value = ""; }
-			$ScriptInformation += @{ Data = "This script is not able to tell if a vDisk is running XenDesktop or XenApp"; Value = ""; }
-			$ScriptInformation += @{ Data = "The RAM calculation is done based on both scenarios. The original formula is"; Value = ""; }
-			$ScriptInformation += @{ Data = "2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)"; Value = ""; }
-			$ScriptInformation += @{ Data = "PVS Internals 2 - How to properly size your memory by Martin Zugec"; Value = ""; }
-			$ScriptInformation += @{ Data = "https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/"; Value = ""; }
 
 			$Table = AddWordTable -Hashtable $ScriptInformation `
 			-Columns Data,Value `
@@ -8793,6 +9340,11 @@ Function ProcessvDisksinFarm
 
 			FindWordDocumentEnd
 			$Table = $Null
+			WriteWordLine 0 0 "This script is not able to tell if a vDisk is running XenDesktop or XenApp"
+			WriteWordLine 0 0 "The RAM calculation is done based on both scenarios. The original formula is"
+			WriteWordLine 0 0 "2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)"
+			WriteWordLine 0 0 "PVS Internals 2 - How to properly size your memory by Martin Zugec"
+			WriteWordLine 0 0 "https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/"
 			WriteWordLine 0 0 ""
 		}
 		If($Text)
@@ -8818,14 +9370,13 @@ Function ProcessvDisksinFarm
 			$rowdata += @(,('Recommended RAM for each PVS Server using XenDesktop vDisks',($htmlsilver -bor $htmlbold),"$($XDRecRAM)GB",$htmlwhite))
 			$rowdata += @(,('Recommended RAM for each PVS Server using XenApp vDisks',($htmlsilver -bor $htmlbold),"$($XARecRAM)GB",$htmlwhite))
 			$rowdata += @(,('Recommended RAM for each PVS Server using XA & XD vDisks',($htmlsilver -bor $htmlbold),"$($XDXARecRAM)GB",$htmlwhite))
-			$rowdata += @(,('',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-			$rowdata += @(,('This script is not able to tell if a vDisk is running XenDesktop or XenApp',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-			$rowdata += @(,('The RAM calculation is done based on both scenarios. The original formula is',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-			$rowdata += @(,('2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-			$rowdata += @(,('PVS Internals 2 - How to properly size your memory by Martin Zugec',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-			$rowdata += @(,('https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/',($htmlsilver -bor $htmlbold),"",$htmlwhite))
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+			WriteHTMLLine 0 0 "This script is not able to tell if a vDisk is running XenDesktop or XenApp"
+			WriteHTMLLine 0 0 "The RAM calculation is done based on both scenarios. The original formula is"
+			WriteHTMLLine 0 0 "2GB + (#XA_vDisk * 4GB) + (#XD_vDisk * 2GB) + 15% (Buffer)"
+			WriteHTMLLine 0 0 "PVS Internals 2 - How to properly size your memory by Martin Zugec"
+			WriteHTMLLine 0 0 "https://www.citrix.com/blogs/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/"
 			WriteHTMLLine 0 0 ""
 		}
 	}
@@ -8835,7 +9386,7 @@ Function ProcessvDisksinFarm
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No vDisks were found in the Farm***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -8858,7 +9409,21 @@ Function ProcessStores
 {
 	#process the stores now
 	Write-Verbose "$(Get-Date -Format G): `tProcessing Stores"
-	Line 0 "Stores Properties"
+
+	If($MSWord -or $PDF)
+	{
+		$selection.InsertNewPage()
+		WriteWordLine 1 0 "Store Properties"
+	}
+	If($Text)
+	{
+		Line 0 "Store Properties"
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 1 0 "Store Properties"
+	}
+
 	$GetWhat = "Store"
 	$GetParam = ""
 	$ErrorTxt = "Farm Store information"
@@ -8868,11 +9433,33 @@ Function ProcessStores
 		ForEach($Store in $Stores)
 		{
 			Write-Verbose "$(Get-Date -Format G): `t`tProcessing Store $($Store.StoreName)"
-			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing General Tab"
-			Line 1 "Name: " $Store.StoreName
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 2 0 "Name: " $Store.StoreName
+			}
+			If($Text)
+			{
+				Line 1 "Name: " $Store.StoreName
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 2 0 "Name: " $Store.StoreName
+			}
 			
 			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing Servers Tab"
-			Line 1 "Servers"
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 3 0 "Servers"
+			}
+			If($Text)
+			{
+				Line 1 "Servers"
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 3 0 "Servers"
+			}
+
 			#find the servers (and the site) that serve this store
 			$GetWhat = "Server"
 			$GetParam = ""
@@ -8899,14 +9486,49 @@ Function ProcessStores
 					}
 				}	
 			}
-			Line 2 "Servers that provide this store:"
+
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 0 1 "Servers that provide this store:"
+			}
+			If($Text)
+			{
+				Line 2 "Servers that provide this store:"
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 0 1 "Servers that provide this store:"
+			}
+
 			ForEach($StoreServer in $StoreServers)
 			{
-				Line 3 $StoreServer
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 0 2 $StoreServer
+				}
+				If($Text)
+				{
+					Line 3 $StoreServer
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 0 2 $StoreServer
+				}
 			}
 
 			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing Paths Tab"
-			Line 1 "Paths"
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 3 0 "Paths"
+			}
+			If($Text)
+			{
+				Line 1 "Paths"
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 3 0 "Paths"
+			}
 
 			#Run through the servers again and test each one for the path
 			ForEach ($StoreServer in $StoreServers)
@@ -8922,17 +9544,51 @@ Function ProcessStores
 				    Test-Path -Path $path -PathType Container -ErrorAction SilentlyContinue } `
 				    -ArgumentList $store.path)
 				{
-					Line 2 "Default store path: $($Store.path) on server $StoreServer is valid"
+					If($MSWord -or $PDF)
+					{
+						WriteWordLine 0 1 "Default store path: $($Store.path) on server $StoreServer is valid"
+					}
+					If($Text)
+					{
+						Line 2 "Default store path: $($Store.path) on server $StoreServer is valid"
+					}
+					If($HTML)
+					{
+						WriteHTMLLine 0 1 "Default store path: $($Store.path) on server $StoreServer is valid"
+					}
 				}
 				Else
 				{
-					Line 2 "Default store path: $($Store.path) on server $StoreServer is not valid"
+					If($MSWord -or $PDF)
+					{
+						WriteWordLine 0 1 "Default store path: $($Store.path) on server $StoreServer is not valid"
+					}
+					If($Text)
+					{
+						Line 2 "Default store path: $($Store.path) on server $StoreServer is not valid"
+					}
+					If($HTML)
+					{
+						WriteHTMLLine 0 1 "Default store path: $($Store.path) on server $StoreServer is not valid"
+					}
 				}
 			}
 
 			If(![String]::IsNullOrEmpty($Store.cachePath))
 			{
-				Line 2 "Default write-cache paths: "
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 3 0 "Default write-cache paths: "
+				}
+				If($Text)
+				{
+					Line 2 "Default write-cache paths: "
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 3 0 "Default write-cache paths: "
+				}
+
 				$WCPaths = @($Store.cachePath.Split(","))
 				ForEach($StoreServer in $StoreServers)
 				{
@@ -8949,27 +9605,85 @@ Function ProcessStores
 							Test-Path -Path $path -PathType Container -ErrorAction SilentlyContinue } `
 							-ArgumentList $WCPath)
 						{
-							Line 3 "Write Cache Path $($WCPath) on server $StoreServer is valid" 
+							If($MSWord -or $PDF)
+							{
+								WriteWordLine 0 1 "Write Cache Path $($WCPath) on server $StoreServer is valid"
+							}
+							If($Text)
+							{
+								Line 2 "Write Cache Path $($WCPath) on server $StoreServer is valid"
+							}
+							If($HTML)
+							{
+								WriteHTMLLine 0 1 "Write Cache Path $($WCPath) on server $StoreServer is valid"
+							}
 						}
 						Else
 						{
-							Line 3 "Write Cache Path $($WCPath) on server $StoreServer is not valid" 
+							If($MSWord -or $PDF)
+							{
+								WriteWordLine 0 1 "Write Cache Path $($WCPath) on server $StoreServer is not valid"
+							}
+							If($Text)
+							{
+								Line 2 "Write Cache Path $($WCPath) on server $StoreServer is not valid"
+							}
+							If($HTML)
+							{
+								WriteHTMLLine 0 1 "Write Cache Path $($WCPath) on server $StoreServer is not valid"
+							}
 						}
 					}
 				}
 			}
 			Else
 			{
-				Line 2 "Using the default write-cache path of $($Store.Path)\WriteCache"
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 0 1 "Using the default write-cache path of $($Store.Path)\WriteCache"
+				}
+				If($Text)
+				{
+					Line 2 "Using the default write-cache path of $($Store.Path)\WriteCache"
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 0 1 "Using the default write-cache path of $($Store.Path)\WriteCache"
+				}
 			}
-			Line 0 ""
+
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 0 0 ""
+			}
+			If($Text)
+			{
+				Line 0 ""
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 0 0 ""
+			}
 		}
 	}
 	Else
 	{
-		Line 1 "There are no Stores configured"
+		$txt = "There are no Stores configured"
+		OutputWarning $txt
 	}
-	Line 0 ""
+
+	If($MSWord -or $PDF)
+	{
+		WriteWordLine 0 0 ""
+	}
+	If($Text)
+	{
+		Line 0 ""
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 0 0 ""
+	}
 	Write-Verbose "$(Get-Date -Format G): "
 }
 #endregion
@@ -9334,7 +10048,7 @@ Function OutputAppendixC
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Configuration Wizard Settings were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -9472,7 +10186,7 @@ Function OutputAppendixD
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Server Bootstrap Items were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -9601,7 +10315,7 @@ Function OutputAppendixE
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No DisableTaskOffload Settings were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -9752,7 +10466,7 @@ Function OutputAppendixF1
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Server PVS Service Items were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -9881,7 +10595,7 @@ Function OutputAppendixF2
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Server PVS Service Items Failure Actions were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -9991,7 +10705,7 @@ Function OutputAppendixG
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No vDisks to Consider Merging were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -10101,7 +10815,7 @@ Function OutputAppendixH
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Empty Device Collections were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -10270,7 +10984,7 @@ Function OutputAppendixI
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No vDisks with no Target Device Associations were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -10392,7 +11106,7 @@ Function OutputAppendixJ
 			{
 				WriteWordLine 0 0 ""
 				WriteWordLine 0 0 "***No Bad Streaming IP Addresses were found***" "" $Null 0 $False $True
-				WroteWordLine 0 0 ""
+				WriteWordLine 0 0 ""
 			}
 			If($Text)
 			{
@@ -10580,7 +11294,7 @@ Function OutputAppendixK
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Misc Registry Items were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -10706,7 +11420,7 @@ Function OutputAppendixL
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No vDisks Configured for Server Side-Caching were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -10775,12 +11489,12 @@ Function OutputAppendixM
 				If($MSWord -or $PDF)
 				{
 					$WordTableRowHash = @{ 
-					ServerName              = "";
-					ThreadsPerPort          = "";
-					BuffersPerThread        = "";
-					ServerCacheTimeout      = "";
-					LocalConcurrentIOLimit  = "";
-					EnableNonBlockingIO     = "";}
+					HotFixID    = "";
+					ServerName  = "";
+					Caption     = "";
+					Description = "";
+					InstalledBy = "";
+					InstalledOn = "";}
 					$ItemsWordTable += $WordTableRowHash;
 				}
 				If($Text)
@@ -10807,13 +11521,13 @@ Function OutputAppendixM
 				Caption     = $Item.Caption;
 				Description = $Item.Description;
 				InstalledBy = $Item.InstalledBy;
-				InstalledOn = $Item.InstalledOn;}
+				InstalledOn = $Item.InstalledOn.ToString();}
 				$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
 				Line 1 ( "{0,-25} {1,-15} {2,-45} {3,-20} {4,-35} {5,-22}" -f `
-				$Item.HotFixID, $Item.ServerName, $Item.Caption, $Item.Description, $Item.InstalledBy, $Item.InstalledOn)
+				$Item.HotFixID, $Item.ServerName, $Item.Caption, $Item.Description, $Item.InstalledBy, $Item.InstalledOn.ToString())
 			}
 			If($HTML)
 			{
@@ -10823,7 +11537,7 @@ Function OutputAppendixM
 				$Item.Caption,$htmlwhite,
 				$Item.Description,$htmlwhite,
 				$Item.InstalledBy,$htmlwhite,
-				$Item.InstalledOn,$htmlwhite))
+				$Item.InstalledOn.ToString(),$htmlwhite))
 			}
 
 			$Save = "$($Item.HotFixID)"
@@ -10884,7 +11598,7 @@ Function OutputAppendixM
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Microsoft Hotfixes and Updates were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11071,7 +11785,7 @@ Function OutputAppendixN
 			{
 				WriteWordLine 0 0 ""
 				WriteWordLine 0 0 "***No Windows installed Roles and Features were found***" "" $Null 0 $False $True
-				WroteWordLine 0 0 ""
+				WriteWordLine 0 0 ""
 			}
 			If($Text)
 			{
@@ -11228,7 +11942,7 @@ Function OutputAppendixO
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No PVS Processes were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11340,7 +12054,7 @@ Function OutputAppendixP
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Items to Review were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11495,7 +12209,7 @@ Function OutputAppendixQ
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Server Items to Review were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11599,7 +12313,7 @@ Function OutputAppendixQ
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Drive Items to Review were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11703,7 +12417,7 @@ Function OutputAppendixQ
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Processor Items to Review were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11817,7 +12531,7 @@ Function OutputAppendixQ
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No NIC Items to Review were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
@@ -11981,7 +12695,7 @@ Function OutputAppendixR
 		{
 			WriteWordLine 0 0 ""
 			WriteWordLine 0 0 "***No Citrix Installed Components were found***" "" $Null 0 $False $True
-			WroteWordLine 0 0 ""
+			WriteWordLine 0 0 ""
 		}
 		If($Text)
 		{
