@@ -400,9 +400,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.20
+	VERSION: 2 0.30
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 7, 2022
+	LASTEDIT: March 8, 2022
 #>
 
 
@@ -669,9 +669,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2 0.20'
+$script:MyVersion         = 'V2 0.30'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/07/2022"
+$tmpdate                  = [datetime] "03/08/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -930,12 +930,12 @@ If($MSWord -or $PDF)
 	[int]$wdSeekMainDocument = 0
 	[int]$wdSeekPrimaryFooter = 4
 	[int]$wdStory = 6
-	[int]$wdColorBlack = 0
-	[int]$wdColorGray05 = 15987699 
+#	[int]$wdColorBlack = 0
+#	[int]$wdColorGray05 = 15987699 
 	[int]$wdColorGray15 = 14277081
-	[int]$wdColorRed = 255
+#	[int]$wdColorRed = 255
 	[int]$wdColorWhite = 16777215
-	[int]$wdColorYellow = 65535 #added in ADDS script V2.22
+#	[int]$wdColorYellow = 65535 #added in ADDS script V2.22
 	[int]$wdWord2007 = 12
 	[int]$wdWord2010 = 14
 	[int]$wdWord2013 = 15
@@ -946,27 +946,27 @@ If($MSWord -or $PDF)
 	#http://msdn.microsoft.com/en-us/library/office/ff835817%28v=office.15%29.aspx
 	#[int]$wdAlignParagraphLeft = 0
 	#[int]$wdAlignParagraphCenter = 1
-	[int]$wdAlignParagraphRight = 2
+#	[int]$wdAlignParagraphRight = 2
 	#http://msdn.microsoft.com/en-us/library/office/ff193345%28v=office.15%29.aspx
-	[int]$wdCellAlignVerticalTop = 0
-	[int]$wdCellAlignVerticalCenter = 1
-	[int]$wdCellAlignVerticalBottom = 2
+#	[int]$wdCellAlignVerticalTop = 0
+#	[int]$wdCellAlignVerticalCenter = 1
+#	[int]$wdCellAlignVerticalBottom = 2
 	#http://msdn.microsoft.com/en-us/library/office/ff844856%28v=office.15%29.aspx
 	[int]$wdAutoFitFixed = 0
 	[int]$wdAutoFitContent = 1
-	[int]$wdAutoFitWindow = 2
+#	[int]$wdAutoFitWindow = 2
 	#http://msdn.microsoft.com/en-us/library/office/ff821928%28v=office.15%29.aspx
 	[int]$wdAdjustNone = 0
 	[int]$wdAdjustProportional = 1
-	[int]$wdAdjustFirstColumn = 2
-	[int]$wdAdjustSameWidth = 3
+#	[int]$wdAdjustFirstColumn = 2
+#	[int]$wdAdjustSameWidth = 3
 
 	[int]$PointsPerTabStop = 36
 	[int]$Indent0TabStops = 0 * $PointsPerTabStop
-	[int]$Indent1TabStops = 1 * $PointsPerTabStop
-	[int]$Indent2TabStops = 2 * $PointsPerTabStop
-	[int]$Indent3TabStops = 3 * $PointsPerTabStop
-	[int]$Indent4TabStops = 4 * $PointsPerTabStop
+#	[int]$Indent1TabStops = 1 * $PointsPerTabStop
+#	[int]$Indent2TabStops = 2 * $PointsPerTabStop
+#	[int]$Indent3TabStops = 3 * $PointsPerTabStop
+#	[int]$Indent4TabStops = 4 * $PointsPerTabStop
 
 	#http://www.thedoctools.com/index.php?show=wt_style_names_english_danish_german_french
 	[int]$wdStyleHeading1 = -2
@@ -980,7 +980,7 @@ If($MSWord -or $PDF)
 	[int]$wdLineStyleSingle = 1
 
 	[int]$wdHeadingFormatTrue = -1
-	[int]$wdHeadingFormatFalse = 0 
+#	[int]$wdHeadingFormatFalse = 0 
 }
 
 If($HTML)
@@ -3751,12 +3751,6 @@ Function GetPVSFarm
 	}
 	[string]$Script:Title = "PVS Health Check Report for Farm $($Script:farm.FarmName)"
 }
-
-Function SetFileName1
-{
-	Param([string]$OutputFileName)
-	[string]$Script:FileName1 = "$($Script:pwdpath)\$($OutputFileName).txt"
-}
 #endregion
 
 #region show script options
@@ -4240,7 +4234,7 @@ Function OutputauthGroups
 	If($HTML)
 	{
 		$columnHeaders = @(
-		'Name',($htmlsilver -bor $htmlbold))
+		'Name',($global:htmlsb))
 		
 		$msg = ""
 		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -4353,8 +4347,8 @@ Function ProcessPVSFarm
 		WriteHTMLLine 1 0 "PVS Farm Information"
 		WriteHTMLLine 2 0 "General"
 		$rowdata = @()
-		$columnHeaders = @("PVS Farm Name",($htmlsilver -bor $htmlbold),$Script:farm.farmName,$htmlwhite)
-		$rowdata += @(,('PVS Version',($htmlsilver -bor $htmlbold),$Script:PVSFullVersion,$htmlwhite))
+		$columnHeaders = @("PVS Farm Name",($global:htmlsb),$Script:farm.farmName,$htmlwhite)
+		$rowdata += @(,('PVS Version',($global:htmlsb),$Script:PVSFullVersion,$htmlwhite))
 		
 		$msg = ""
 		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -4529,32 +4523,32 @@ Function ProcessPVSFarm
 	{
 		WriteHTMLLine 2 0 "Licensing"
 		$rowdata = @()
-		$columnHeaders = @("License server name",($htmlsilver -bor $htmlbold),$Script:farm.licenseServer,$htmlwhite)
-		$rowdata += @(,('License server IP',($htmlsilver -bor $htmlbold),$LicenseServerIPAddress,$htmlwhite))
-		$rowdata += @(,('License server port',($htmlsilver -bor $htmlbold),$Script:farm.licenseServerPort,$htmlwhite))
+		$columnHeaders = @("License server name",($global:htmlsb),$Script:farm.licenseServer,$htmlwhite)
+		$rowdata += @(,('License server IP',($global:htmlsb),$LicenseServerIPAddress,$htmlwhite))
+		$rowdata += @(,('License server port',($global:htmlsb),$Script:farm.licenseServerPort,$htmlwhite))
 		If($Script:PVSFullVersion -ge "7.19")
 		{
-			$rowdata += @(,("Citrix Provisioning license type",($htmlsilver -bor $htmlbold),"",$htmlwhite))
+			$rowdata += @(,("Citrix Provisioning license type",($global:htmlsb),"",$htmlwhite))
 			If($Script:farm.LicenseSKU -eq 0)
 			{
-				$rowdata += @(,("     On-Premises",($htmlsilver -bor $htmlbold),"Yes",$htmlwhite))
-				$rowdata += @(,("          Use Datacenter licenses for desktops if no Desktop licenses are available",($htmlsilver -bor $htmlbold),$DatacenterLicense,$htmlwhite))
-				$rowdata += @(,("     Cloud",($htmlsilver -bor $htmlbold),"No",$htmlwhite))
+				$rowdata += @(,("     On-Premises",($global:htmlsb),"Yes",$htmlwhite))
+				$rowdata += @(,("          Use Datacenter licenses for desktops if no Desktop licenses are available",($global:htmlsb),$DatacenterLicense,$htmlwhite))
+				$rowdata += @(,("     Cloud",($global:htmlsb),"No",$htmlwhite))
 			}
 			ElseIf($Script:farm.LicenseSKU -eq 1)
 			{
-				$rowdata += @(,("     On-Premises",($htmlsilver -bor $htmlbold),"No",$htmlwhite))
-				$rowdata += @(,("          Use Datacenter licenses for desktops if no Desktop licenses are available",($htmlsilver -bor $htmlbold),$DatacenterLicense,$htmlwhite))
-				$rowdata += @(,("     Cloud",($htmlsilver -bor $htmlbold),"Yes",$htmlwhite))
+				$rowdata += @(,("     On-Premises",($global:htmlsb),"No",$htmlwhite))
+				$rowdata += @(,("          Use Datacenter licenses for desktops if no Desktop licenses are available",($global:htmlsb),$DatacenterLicense,$htmlwhite))
+				$rowdata += @(,("     Cloud",($global:htmlsb),"Yes",$htmlwhite))
 			}
 			Else
 			{
-				$rowdata += @(,("     On-Premises",($htmlsilver -bor $htmlbold),"ERROR: Unable to determine the PVS License SKU Tpe",$htmlwhite))
+				$rowdata += @(,("     On-Premises",($global:htmlsb),"ERROR: Unable to determine the PVS License SKU Tpe",$htmlwhite))
 			}
 		}
 		ElseIf($Script:PVSFullVersion -ge "7.13")
 		{
-			$rowdata += @(,('Use Datacenter licenses for desktops if no Desktop licenses are available',($htmlsilver -bor $htmlbold),$DatacenterLicense,$htmlwhite))
+			$rowdata += @(,('Use Datacenter licenses for desktops if no Desktop licenses are available',($global:htmlsb),$DatacenterLicense,$htmlwhite))
 		}
 		FormatHTMLTable "" "auto" -rowArray $rowdata -columnArray $columnHeaders
 	}
@@ -4648,16 +4642,16 @@ Function ProcessPVSFarm
 	{
 		WriteHTMLLine 2 0 "Options"
 		$rowdata = @()
-		$columnHeaders = @("Auto-add",($htmlsilver -bor $htmlbold),"",$htmlwhite)
-		$rowdata += @(,('     Enable auto-add',($htmlsilver -bor $htmlbold),$Script:FarmAutoAddEnabled.ToString(),$htmlwhite))
+		$columnHeaders = @("Auto-add",($global:htmlsb),"",$htmlwhite)
+		$rowdata += @(,('     Enable auto-add',($global:htmlsb),$Script:FarmAutoAddEnabled.ToString(),$htmlwhite))
 		If($Script:FarmAutoAddEnabled)
 		{
-			$rowdata += @(,('     Add new devices to this site',($htmlsilver -bor $htmlbold),$Script:farm.DefaultSiteName,$htmlwhite))
+			$rowdata += @(,('     Add new devices to this site',($global:htmlsb),$Script:farm.DefaultSiteName,$htmlwhite))
 		}
-		$rowdata += @(,('Auditing',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-		$rowdata += @(,('     Enable auditing',($htmlsilver -bor $htmlbold),$Script:farmauditingEnabled.ToString(),$htmlwhite))
-		$rowdata += @(,('Offline database support',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-		$rowdata += @(,('     Enable offline database support',($htmlsilver -bor $htmlbold),$Script:farmofflineDatabaseSupportEnabled.ToString(),$htmlwhite))
+		$rowdata += @(,('Auditing',($global:htmlsb),"",$htmlwhite))
+		$rowdata += @(,('     Enable auditing',($global:htmlsb),$Script:farmauditingEnabled.ToString(),$htmlwhite))
+		$rowdata += @(,('Offline database support',($global:htmlsb),"",$htmlwhite))
+		$rowdata += @(,('     Enable offline database support',($global:htmlsb),$Script:farmofflineDatabaseSupportEnabled.ToString(),$htmlwhite))
 		FormatHTMLTable "" "auto" -rowArray $rowdata -columnArray $columnHeaders
 	}
 
@@ -4706,9 +4700,9 @@ Function ProcessPVSFarm
 	{
 		WriteHTMLLine 2 0 "vDisk Version"
 		$rowdata = @()
-		$columnHeaders = @("Alert if number of versions from base image exceeds",($htmlsilver -bor $htmlbold),$Script:farm.maxVersions.ToString(),$htmlwhite)
-		$rowdata += @(,('Merge after automated vDisk update, if over alert threshold',($htmlsilver -bor $htmlbold),$xautomaticMergeEnabled,$htmlwhite))
-		$rowdata += @(,('Default access mode for new merge versions',($htmlsilver -bor $htmlbold),$xmergeMode,$htmlwhite))
+		$columnHeaders = @("Alert if number of versions from base image exceeds",($global:htmlsb),$Script:farm.maxVersions.ToString(),$htmlwhite)
+		$rowdata += @(,('Merge after automated vDisk update, if over alert threshold',($global:htmlsb),$xautomaticMergeEnabled,$htmlwhite))
+		$rowdata += @(,('Default access mode for new merge versions',($global:htmlsb),$xmergeMode,$htmlwhite))
 		FormatHTMLTable "" "auto" -rowArray $rowdata -columnArray $columnHeaders
 	}
 
@@ -4726,18 +4720,11 @@ Function ProcessPVSFarm
 	
 	If($Script:PVSFullVersion -ge "7.11")
 	{
-		If($Script:farm.multiSubnetFailover -eq "1")
-		{
-			$MultiSubnetFailover = "True"
-		}
-		Else
-		{
-			$MultiSubnetFailover = "False"
-		}
+		$MultiSubnetFailover = $Script:farm.MultiSubnetFailover
 	}
 	Else
 	{
-		$MultiSubnetFailover = "No supported on PVS $($Script:PVSFullVersion)"
+		$MultiSubnetFailover = "Not supported on PVS $($Script:PVSFullVersion)"
 	}
 	
 	If($MSWord -or $PDF)
@@ -4787,15 +4774,15 @@ Function ProcessPVSFarm
 	{
 		WriteHTMLLine 2 0 "Status"
 		$rowdata = @()
-		$columnHeaders = @("Database server",($htmlsilver -bor $htmlbold),$Script:farm.databaseServerName,$htmlwhite)
-		$rowdata += @(,('Database server IP',($htmlsilver -bor $htmlbold),$SQLServerIPAddress,$htmlwhite))
-		$rowdata += @(,('Database instance',($htmlsilver -bor $htmlbold),$Script:farm.databaseInstanceName,$htmlwhite))
-		$rowdata += @(,('Database',($htmlsilver -bor $htmlbold),$Script:farm.databaseName,$htmlwhite))
-		$rowdata += @(,('Failover Partner Server',($htmlsilver -bor $htmlbold),$Script:farm.failoverPartnerServerName,$htmlwhite))
-		$rowdata += @(,('Failover Partner Server IP',($htmlsilver -bor $htmlbold),$FailoverSQLServerIPAddress,$htmlwhite))
-		$rowdata += @(,('Failover Partner Instance',($htmlsilver -bor $htmlbold),$Script:farm.failoverPartnerInstanceName,$htmlwhite))
-		$rowdata += @(,('MultiSubnetFailover',($htmlsilver -bor $htmlbold),$MultiSubnetFailover,$htmlwhite))
-		$rowdata += @(,('',($htmlsilver -bor $htmlbold),$xadGroupsEnabled,$htmlwhite))
+		$columnHeaders = @("Database server",($global:htmlsb),$Script:farm.databaseServerName,$htmlwhite)
+		$rowdata += @(,('Database server IP',($global:htmlsb),$SQLServerIPAddress,$htmlwhite))
+		$rowdata += @(,('Database instance',($global:htmlsb),$Script:farm.databaseInstanceName,$htmlwhite))
+		$rowdata += @(,('Database',($global:htmlsb),$Script:farm.databaseName,$htmlwhite))
+		$rowdata += @(,('Failover Partner Server',($global:htmlsb),$Script:farm.failoverPartnerServerName,$htmlwhite))
+		$rowdata += @(,('Failover Partner Server IP',($global:htmlsb),$FailoverSQLServerIPAddress,$htmlwhite))
+		$rowdata += @(,('Failover Partner Instance',($global:htmlsb),$Script:farm.failoverPartnerInstanceName,$htmlwhite))
+		$rowdata += @(,('MultiSubnetFailover',($global:htmlsb),$MultiSubnetFailover,$htmlwhite))
+		$rowdata += @(,('',($global:htmlsb),$xadGroupsEnabled,$htmlwhite))
 		
 		$msg = "Current status of the farm"
 		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -4859,7 +4846,7 @@ Function ProcessPVSFarm
 				WriteHTMLLine 2 0 "Problem Report"
 				WriteHTMLLine 0 0 "Configure your My Citrix credentials in order to submit problem reports"
 				$rowdata = @()
-				$columnHeaders = @("My Citrix Username",($htmlsilver -bor $htmlbold),$CISUserName,$htmlwhite)
+				$columnHeaders = @("My Citrix Username",($global:htmlsb),$CISUserName,$htmlwhite)
 				
 				$msg = ""
 				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -4898,13 +4885,13 @@ Function DeviceStatus
 		}
 		If($Text)
 		{
-			Line 4 "Target device`t`t: " "Inactive"
+			Line 3 "Target device: " "Inactive"
 			Line 0 ""
 		}
 		If($HTML)
 		{
 			$rowdata = @()
-			$columnHeaders = @("Target device",($htmlsilver -bor $htmlbold),"Inactive",$htmlwhite)
+			$columnHeaders = @("Target device",($global:htmlsb),"Inactive",$htmlwhite)
 
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -5007,51 +4994,51 @@ Function DeviceStatus
 		}
 		If($Text)
 		{
-			Line 4 "Target device`t`t: " "Active"
-			Line 4 "IP Address`t`t: " $xDevice.ip
-			Line 4 "Server`t`t`t: " "$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)"
-			Line 4 "Retries`t`t`t: " $xDevice.status
-			Line 4 "vDisk`t`t`t: " $xDevice.diskLocatorName
-			Line 4 "vDisk version`t`t: " $xDevice.diskVersion
-			Line 4 "vDisk name`t`t: " $xDevice.diskFileName
-			Line 4 "vDisk access`t`t: " $xDevicediskVersionAccess
+			Line 3 "Target device`t`t: " "Active"
+			Line 3 "IP Address`t`t: " $xDevice.ip
+			Line 3 "Server`t`t`t: " "$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)"
+			Line 3 "Retries`t`t`t: " $xDevice.status
+			Line 3 "vDisk`t`t`t: " $xDevice.diskLocatorName
+			Line 3 "vDisk version`t`t: " $xDevice.diskVersion
+			Line 3 "vDisk name`t`t: " $xDevice.diskFileName
+			Line 3 "vDisk access`t`t: " $xDevicediskVersionAccess
 			If($Script:PVSVersion -eq "7")
 			{
-				Line 4 "Local write cache disk`t: $($xDevice.localWriteCacheDiskSize)GB"
-				Line 4 "Boot mode`t`t: " $xDevicebdmBoot
+				Line 3 "Local write cache disk`t: $($xDevice.localWriteCacheDiskSize)GB"
+				Line 3 "Boot mode`t`t: " $xDevicebdmBoot
 			}
-			Line 4 "License type`t`t: " $xDevicelicenseType
+			Line 3 "License type`t`t: " $xDevicelicenseType
 			
 			Line 0 ""
-			Line 3 "Logging"
-			Line 4 "Logging level`t`t: " $xDevicelogLevel
+			Line 2 "Logging"
+			Line 3 "Logging level`t`t: " $xDevicelogLevel
 			
 			Line 0 ""
 		}
 		If($HTML)
 		{
 			$rowdata = @()
-			$columnHeaders = @("Target device",($htmlsilver -bor $htmlbold),"Active",$htmlwhite)
-			$rowdata += @(,('IP Address',($htmlsilver -bor $htmlbold),$xDevice.ip,$htmlwhite))
-			$rowdata += @(,('Server',($htmlsilver -bor $htmlbold),"$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)",$htmlwhite))
-			$rowdata += @(,('Retries',($htmlsilver -bor $htmlbold),$xDevice.status,$htmlwhite))
-			$rowdata += @(,('vDisk',($htmlsilver -bor $htmlbold),$xDevice.diskLocatorName,$htmlwhite))
-			$rowdata += @(,('vDisk version',($htmlsilver -bor $htmlbold),$xDevice.diskVersion,$htmlwhite))
-			$rowdata += @(,('vDisk name',($htmlsilver -bor $htmlbold),$xDevice.diskFileName,$htmlwhite))
-			$rowdata += @(,('vDisk access',($htmlsilver -bor $htmlbold),$xDevicediskVersionAccess,$htmlwhite))
+			$columnHeaders = @("Target device",($global:htmlsb),"Active",$htmlwhite)
+			$rowdata += @(,('IP Address',($global:htmlsb),$xDevice.ip,$htmlwhite))
+			$rowdata += @(,('Server',($global:htmlsb),"$($xDevice.serverName) `($($xDevice.serverIpConnection)`: $($xDevice.serverPortConnection)`)",$htmlwhite))
+			$rowdata += @(,('Retries',($global:htmlsb),$xDevice.status,$htmlwhite))
+			$rowdata += @(,('vDisk',($global:htmlsb),$xDevice.diskLocatorName,$htmlwhite))
+			$rowdata += @(,('vDisk version',($global:htmlsb),$xDevice.diskVersion,$htmlwhite))
+			$rowdata += @(,('vDisk name',($global:htmlsb),$xDevice.diskFileName,$htmlwhite))
+			$rowdata += @(,('vDisk access',($global:htmlsb),$xDevicediskVersionAccess,$htmlwhite))
 			If($Script:PVSVersion -eq "7")
 			{
-				$rowdata += @(,('Local write cache disk',($htmlsilver -bor $htmlbold),"$($xDevice.localWriteCacheDiskSize)GB",$htmlwhite))
-				$rowdata += @(,('Boot mode',($htmlsilver -bor $htmlbold),$xDevicebdmBoot,$htmlwhite))
+				$rowdata += @(,('Local write cache disk',($global:htmlsb),"$($xDevice.localWriteCacheDiskSize)GB",$htmlwhite))
+				$rowdata += @(,('Boot mode',($global:htmlsb),$xDevicebdmBoot,$htmlwhite))
 			}
-			$rowdata += @(,("License type",($htmlsilver -bor $htmlbold),$xDevicelicenseType,$htmlwhite))
+			$rowdata += @(,("License type",($global:htmlsb),$xDevicelicenseType,$htmlwhite))
 
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
 			WriteHTMLLine 0 0 " "
 			
 			$rowdata = @()
-			$columnHeaders = @("Logging level",($htmlsilver -bor $htmlbold),$xDevicelogLevel,$htmlwhite)
+			$columnHeaders = @("Logging level",($global:htmlsb),$xDevicelogLevel,$htmlwhite)
 
 			$msg = "Logging"
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -5123,7 +5110,7 @@ Function ProcessPVSSite
 				WriteHTMLLine 1 0 "Site properties"
 				WriteHTMLLine 2 0 "General"
 				$rowdata = @()
-				$columnHeaders = @("Site Name",($htmlsilver -bor $htmlbold),$PVSSite.siteName,$htmlwhite)
+				$columnHeaders = @("Site Name",($global:htmlsb),$PVSSite.siteName,$htmlwhite)
 				FormatHTMLTable "" "auto" -rowArray $rowdata -columnArray $columnHeaders
 			}
 
@@ -5233,8 +5220,8 @@ Function ProcessPVSSite
 				WriteHTMLLine 2 0 "Options"
 				WriteHTMLLine 0 0 "Auto-Add"
 				$rowdata = @()
-				$columnHeaders = @("Add new devices to this collection",($htmlsilver -bor $htmlbold),$xAutoAdd,$htmlwhite)
-				$rowdata += @(,('Seconds between vDisk inventory scans',($htmlsilver -bor $htmlbold),$PVSSite.InventoryFilePollingInterval.ToString(),$htmlwhite))
+				$columnHeaders = @("Add new devices to this collection",($global:htmlsb),$xAutoAdd,$htmlwhite)
+				$rowdata += @(,('Seconds between vDisk inventory scans',($global:htmlsb),$PVSSite.InventoryFilePollingInterval.ToString(),$htmlwhite))
 				
 				$msg = ""
 				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -5275,8 +5262,8 @@ Function ProcessPVSSite
 				{
 					WriteHTMLLine 2 0 "vDisk Update"
 					$rowdata = @()
-					$columnHeaders = @("Enable automatic vDisk updates on this site",($htmlsilver -bor $htmlbold),"Yes",$htmlwhite)
-					$rowdata += @(,('Server to run vDisk updates for this site',($htmlsilver -bor $htmlbold),$PVSSite.diskUpdateServerName,$htmlwhite))
+					$columnHeaders = @("Enable automatic vDisk updates on this site",($global:htmlsb),"Yes",$htmlwhite)
+					$rowdata += @(,('Server to run vDisk updates for this site',($global:htmlsb),$PVSSite.diskUpdateServerName,$htmlwhite))
 					FormatHTMLTable "" "auto" -rowArray $rowdata -columnArray $columnHeaders
 				}
 			}
@@ -5311,7 +5298,7 @@ Function ProcessPVSSite
 				{
 					WriteHTMLLine 2 0 "vDisk Update"
 					$rowdata = @()
-					$columnHeaders = @("Enable automatic vDisk updates on this site",($htmlsilver -bor $htmlbold),"No",$htmlwhite)
+					$columnHeaders = @("Enable automatic vDisk updates on this site",($global:htmlsb),"No",$htmlwhite)
 					FormatHTMLTable "" "auto" -rowArray $rowdata -columnArray $columnHeaders
 				}
 			}
@@ -5393,7 +5380,7 @@ Function ProcessPVSSite
 							WriteWordLine 0 0 "General"
 							[System.Collections.Hashtable[]] $ScriptInformation = @()
 							$ScriptInformation += @{ Data = "Name"; Value = $Server.serverName; }
-							$ScriptInformation += @{ Data = "Log events to the server's Windows Event Log"; Value = $xeventLoggingEnabled; }
+							$ScriptInformation += @{ Data = "Log events to the server's Windows Event Log"; Value = $xeventLoggingEnabled.ToString(); }
 							$Table = AddWordTable -Hashtable $ScriptInformation `
 							-Columns Data,Value `
 							-List `
@@ -5413,7 +5400,7 @@ Function ProcessPVSSite
 							Line 2 "Server Properties"
 							Line 3 "General"
 							Line 4 "Name`t`t: " $Server.serverName
-							Line 4 "Log events to the server's Windows Event Log: " $xeventLoggingEnabled
+							Line 4 "Log events to the server's Windows Event Log: " $xeventLoggingEnabled.ToString()
 							Line 0 ""
 						}
 						If($HTML)
@@ -5421,8 +5408,8 @@ Function ProcessPVSSite
 							WriteHTMLLine 3 0 $Server.serverName
 							WriteHTMLLine 4 0 "Server Properties"
 							$rowdata = @()
-							$columnHeaders = @("Name",($htmlsilver -bor $htmlbold),$Server.serverName,$htmlwhite)
-							$rowdata += @(,("Log events to the server's Windows Event Log",($htmlsilver -bor $htmlbold),$xeventLoggingEnabled,$htmlwhite))
+							$columnHeaders = @("Name",($global:htmlsb),$Server.serverName,$htmlwhite)
+							$rowdata += @(,("Log events to the server's Windows Event Log",($global:htmlsb),$xeventLoggingEnabled.ToString(),$htmlwhite))
 							
 							$msg = "General"
 							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -5526,11 +5513,11 @@ Function ProcessPVSSite
 							$rowdata = @()
 							If($Script:PVSVersion -eq "7")
 							{
-								$columnHeaders = @("Streaming IP addresses",($htmlsilver -bor $htmlbold),"$($StreamingIPs[0])",$htmlwhite)
+								$columnHeaders = @("Streaming IP addresses",($global:htmlsb),"$($StreamingIPs[0])",$htmlwhite)
 							}
 							Else
 							{
-								$columnHeaders = @("IP addresses",($htmlsilver -bor $htmlbold),"$($StreamingIPs[0])",$htmlwhite)
+								$columnHeaders = @("IP addresses",($global:htmlsb),"$($StreamingIPs[0])",$htmlwhite)
 							}
 
 							$cnt = -1
@@ -5539,16 +5526,16 @@ Function ProcessPVSSite
 								$cnt++
 								If($cnt -gt 0)
 								{
-									$rowdata += @(,('',($htmlsilver -bor $htmlbold),$tmp,$htmlwhite))
+									$rowdata += @(,('',($global:htmlsb),$tmp,$htmlwhite))
 								}
 							}
 
-							$rowdata += @(,('Ports',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-							$rowdata += @(,('     First port',($htmlsilver -bor $htmlbold),$Server.firstPort,$htmlwhite))
-							$rowdata += @(,('     Last port',($htmlsilver -bor $htmlbold),$Server.lastPort,$htmlwhite))
+							$rowdata += @(,('Ports',($global:htmlsb),"",$htmlwhite))
+							$rowdata += @(,('     First port',($global:htmlsb),$Server.firstPort,$htmlwhite))
+							$rowdata += @(,('     Last port',($global:htmlsb),$Server.lastPort,$htmlwhite))
 							If($Script:PVSVersion -eq "7")
 							{
-								$rowdata += @(,('Management IP',($htmlsilver -bor $htmlbold),$Server.managementIp,$htmlwhite))
+								$rowdata += @(,('Management IP',($global:htmlsb),$Server.managementIp,$htmlwhite))
 							}
 							$msg = "Network"
 							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -5750,7 +5737,7 @@ Function ProcessPVSSite
 						If($HTML)
 						{
 							$columnHeaders = @(
-							'Name',($htmlsilver -bor $htmlbold))
+							'Name',($global:htmlsb))
 							
 							$msg = ""
 							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -5849,10 +5836,11 @@ Function ProcessPVSSite
 						If($HTML)
 						{
 							$columnHeaders = @(
-							'Name',($htmlsilver -bor $htmlbold))
+							'Name',($global:htmlsb))
 							
 							$msg = ""
 							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+							WriteHTMLLine 0 0 ""
 						}
 					}
 					If(!$DeviceOperators)
@@ -5863,11 +5851,12 @@ Function ProcessPVSSite
 						}
 						If($Text)
 						{
-							Line 3 "Groups with 'Device Operator' access`t: None defined"
+							Line 3 "Groups with 'Device Operator' access`t : None defined"
 						}
 						If($HTML)
 						{
 							WriteHTMLLine 0 0 "Groups with 'Device Operator' access: None defined"
+							WriteHTMLLine 0 0 ""
 						}
 					}
 
@@ -5939,13 +5928,13 @@ Function ProcessPVSSite
 						If($HTML)
 						{
 							$rowdata = @()
-							$columnHeaders = @("Template target device",($htmlsilver -bor $htmlbold),$TDN,$htmlwhite)
-							$rowdata += @(,('Device Name',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-							$rowdata += @(,('     Prefix',($htmlsilver -bor $htmlbold),$Collection.autoAddPrefix,$htmlwhite))
-							$rowdata += @(,('     Length',($htmlsilver -bor $htmlbold),$Collection.autoAddNumberLength,$htmlwhite))
-							$rowdata += @(,('     Zero fill',($htmlsilver -bor $htmlbold),$autoAddZeroFill,$htmlwhite))
-							$rowdata += @(,('     Suffix',($htmlsilver -bor $htmlbold),$Collection.autoAddSuffix,$htmlwhite))
-							$rowdata += @(,('     Last incremental #',($htmlsilver -bor $htmlbold),$Collection.lastAutoAddDeviceNumber,$htmlwhite))
+							$columnHeaders = @("Template target device",($global:htmlsb),$TDN,$htmlwhite)
+							$rowdata += @(,('Device Name',($global:htmlsb),"",$htmlwhite))
+							$rowdata += @(,('     Prefix',($global:htmlsb),$Collection.autoAddPrefix,$htmlwhite))
+							$rowdata += @(,('     Length',($global:htmlsb),$Collection.autoAddNumberLength,$htmlwhite))
+							$rowdata += @(,('     Zero fill',($global:htmlsb),$autoAddZeroFill,$htmlwhite))
+							$rowdata += @(,('     Suffix',($global:htmlsb),$Collection.autoAddSuffix,$htmlwhite))
+							$rowdata += @(,('     Last incremental #',($global:htmlsb),$Collection.lastAutoAddDeviceNumber,$htmlwhite))
 							
 							$msg = "Auto-Add"
 							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -6039,13 +6028,6 @@ Function ProcessPVSSite
 						{
 							$DevicelocalDiskEnabled = "No"
 						}
-						Switch ($Device.authentication)
-						{
-							0 		{$DeviceAuthentication = "None"; Break }
-							1 		{$DeviceAuthentication = "Username and password"; Break }
-							2 		{$DeviceAuthentication = "External verification (User supplied method)"; Break }
-							Default {$DeviceAuthentication = "Authentication type could not be determined: $($Device.authentication)"; Break }
-						}
 
 						If($MSWord -or $PDF)
 						{
@@ -6126,31 +6108,31 @@ Function ProcessPVSSite
 						If($HTML)
 						{
 							$rowdata = @()
-							$columnHeaders = @("Name",($htmlsilver -bor $htmlbold),$Device.deviceName,$htmlwhite)
+							$columnHeaders = @("Name",($global:htmlsb),$Device.deviceName,$htmlwhite)
 
 							If($Device.type -ne "3")
 							{
-								$rowdata += @(,('Type',($htmlsilver -bor $htmlbold),$DeviceType,$htmlwhite))
-								$rowdata += @(,('Boot from',($htmlsilver -bor $htmlbold),$DeviceBootFrom,$htmlwhite))
+								$rowdata += @(,('Type',($global:htmlsb),$DeviceType,$htmlwhite))
+								$rowdata += @(,('Boot from',($global:htmlsb),$DeviceBootFrom,$htmlwhite))
 							}
 
-							$rowdata += @(,('MAC',($htmlsilver -bor $htmlbold),$Device.deviceMac,$htmlwhite))
-							$rowdata += @(,('Port',($htmlsilver -bor $htmlbold),$Device.port,$htmlwhite))
+							$rowdata += @(,('MAC',($global:htmlsb),$Device.deviceMac,$htmlwhite))
+							$rowdata += @(,('Port',($global:htmlsb),$Device.port,$htmlwhite))
 							
 							If($Device.type -ne "3")
 							{
-								$rowdata += @(,('Class',($htmlsilver -bor $htmlbold),$Device.className,$htmlwhite))
-								$rowdata += @(,('Disable this device',($htmlsilver -bor $htmlbold),$DeviceEnabled,$htmlwhite))
+								$rowdata += @(,('Class',($global:htmlsb),$Device.className,$htmlwhite))
+								$rowdata += @(,('Disable this device',($global:htmlsb),$DeviceEnabled,$htmlwhite))
 							}
 							Else
 							{
-								$rowdata += @(,('vDisk',($htmlsilver -bor $htmlbold),$Device.diskLocatorName,$htmlwhite))
-								$rowdata += @(,('Personal vDisk Drive',($htmlsilver -bor $htmlbold),$Device.pvdDriveLetter,$htmlwhite))
+								$rowdata += @(,('vDisk',($global:htmlsb),$Device.diskLocatorName,$htmlwhite))
+								$rowdata += @(,('Personal vDisk Drive',($global:htmlsb),$Device.pvdDriveLetter,$htmlwhite))
 							}
 
 							If($Script:Version -ge "7.12" -and $Device.XsPvsProxyUuid -ne "00000000-0000-0000-0000-000000000000")
 							{
-								$rowdata += @(,('Configured for XenServer vDisk caching',($htmlsilver -bor $htmlbold),"",$htmlwhite))
+								$rowdata += @(,('Configured for XenServer vDisk caching',($global:htmlsb),"",$htmlwhite))
 							}
 						
 							$msg = "General"
@@ -6165,7 +6147,7 @@ Function ProcessPVSSite
 						}
 						If($Text)
 						{
-							Line 0 "vDisks"
+							Line 1 "vDisks"
 						}
 
 						#process all vdisks for this device
@@ -6212,7 +6194,7 @@ Function ProcessPVSSite
 							}
 							If($Text)
 							{
-								Line 3 "Name: " $vDiskArray[0]
+								Line 2 "Name: " $vDiskArray[0]
 								$cnt = -1
 								ForEach($tmp in $vDiskArray)
 								{
@@ -6226,14 +6208,14 @@ Function ProcessPVSSite
 							If($HTML)
 							{
 								$rowdata = @()
-								$columnHeaders = @("Name",($htmlsilver -bor $htmlbold),$vDiskArray[0],$htmlwhite)
+								$columnHeaders = @("Name",($global:htmlsb),$vDiskArray[0],$htmlwhite)
 								$cnt = -1
 								ForEach($tmp in $vDiskArray)
 								{
 									$cnt++
 									If($cnt -gt 0)
 									{
-										$rowdata += @(,('',($htmlsilver -bor $htmlbold),$tmp,$htmlwhite))
+										$rowdata += @(,('',($global:htmlsb),$tmp,$htmlwhite))
 									}
 								}
 						
@@ -6248,7 +6230,7 @@ Function ProcessPVSSite
 							}
 							If($Text)
 							{
-								Line 4 "List local hard drive in boot menu: " $DevicelocalDiskEnabled
+								Line 3 "List local hard drive in boot menu: " $DevicelocalDiskEnabled
 							}
 							If($HTML)
 							{
@@ -6819,14 +6801,14 @@ Function OutputComputerItem
 	If($HTML)
 	{
 		$rowdata = @()
-		$columnHeaders = @("Manufacturer",($htmlsilver -bor $htmlBold),$Item.manufacturer,$htmlwhite)
-		$rowdata += @(,('Model',($htmlsilver -bor $htmlBold),$Item.model,$htmlwhite))
-		$rowdata += @(,('Domain',($htmlsilver -bor $htmlBold),$Item.domain,$htmlwhite))
-		$rowdata += @(,('Operating System',($htmlsilver -bor $htmlBold),$OS,$htmlwhite))
-		$rowdata += @(,('Power Plan',($htmlsilver -bor $htmlBold),$PowerPlan,$htmlwhite))
-		$rowdata += @(,('Total Ram',($htmlsilver -bor $htmlBold),"$($Item.totalphysicalram) GB",$htmlwhite))
-		$rowdata += @(,('Physical Processors (sockets)',($htmlsilver -bor $htmlBold),$Item.NumberOfProcessors,$htmlwhite))
-		$rowdata += @(,('Logical Processors (cores w/HT)',($htmlsilver -bor $htmlBold),$Item.NumberOfLogicalProcessors,$htmlwhite))
+		$columnHeaders = @("Manufacturer",($global:htmlsb),$Item.manufacturer,$htmlwhite)
+		$rowdata += @(,('Model',($global:htmlsb),$Item.model,$htmlwhite))
+		$rowdata += @(,('Domain',($global:htmlsb),$Item.domain,$htmlwhite))
+		$rowdata += @(,('Operating System',($global:htmlsb),$OS,$htmlwhite))
+		$rowdata += @(,('Power Plan',($global:htmlsb),$PowerPlan,$htmlwhite))
+		$rowdata += @(,('Total Ram',($global:htmlsb),"$($Item.totalphysicalram) GB",$htmlwhite))
+		$rowdata += @(,('Physical Processors (sockets)',($global:htmlsb),$Item.NumberOfProcessors,$htmlwhite))
+		$rowdata += @(,('Logical Processors (cores w/HT)',($global:htmlsb),$Item.NumberOfLogicalProcessors,$htmlwhite))
 
 		$msg = ""
 		$columnWidths = @("150px","200px")
@@ -6936,27 +6918,27 @@ Function OutputDriveItem
 	If($HTML)
 	{
 		$rowdata = @()
-		$columnHeaders = @("Caption",($htmlsilver -bor $htmlBold),$Drive.caption,$htmlwhite)
-		$rowdata += @(,('Size',($htmlsilver -bor $htmlBold),"$($drive.drivesize) GB",$htmlwhite))
+		$columnHeaders = @("Caption",($global:htmlsb),$Drive.caption,$htmlwhite)
+		$rowdata += @(,('Size',($global:htmlsb),"$($drive.drivesize) GB",$htmlwhite))
 
 		If(![String]::IsNullOrEmpty($drive.filesystem))
 		{
-			$rowdata += @(,('File System',($htmlsilver -bor $htmlBold),$Drive.filesystem,$htmlwhite))
+			$rowdata += @(,('File System',($global:htmlsb),$Drive.filesystem,$htmlwhite))
 		}
-		$rowdata += @(,('Free Space',($htmlsilver -bor $htmlBold),"$($drive.drivefreespace) GB",$htmlwhite))
+		$rowdata += @(,('Free Space',($global:htmlsb),"$($drive.drivefreespace) GB",$htmlwhite))
 		If(![String]::IsNullOrEmpty($drive.volumename))
 		{
-			$rowdata += @(,('Volume Name',($htmlsilver -bor $htmlBold),$Drive.volumename,$htmlwhite))
+			$rowdata += @(,('Volume Name',($global:htmlsb),$Drive.volumename,$htmlwhite))
 		}
 		If(![String]::IsNullOrEmpty($drive.volumedirty))
 		{
-			$rowdata += @(,('Volume is Dirty',($htmlsilver -bor $htmlBold),$xVolumeDirty,$htmlwhite))
+			$rowdata += @(,('Volume is Dirty',($global:htmlsb),$xVolumeDirty,$htmlwhite))
 		}
 		If(![String]::IsNullOrEmpty($drive.volumeserialnumber))
 		{
-			$rowdata += @(,('Volume Serial Number',($htmlsilver -bor $htmlBold),$Drive.volumeserialnumber,$htmlwhite))
+			$rowdata += @(,('Volume Serial Number',($global:htmlsb),$Drive.volumeserialnumber,$htmlwhite))
 		}
-		$rowdata += @(,('Drive Type',($htmlsilver -bor $htmlBold),$xDriveType,$htmlwhite))
+		$rowdata += @(,('Drive Type',($global:htmlsb),$xDriveType,$htmlwhite))
 
 		$msg = ""
 		$columnWidths = @("150px","200px")
@@ -7061,27 +7043,27 @@ Function OutputProcessorItem
 	If($HTML)
 	{
 		$rowdata = @()
-		$columnHeaders = @("Name",($htmlsilver -bor $htmlBold),$Processor.name,$htmlwhite)
-		$rowdata += @(,('Description',($htmlsilver -bor $htmlBold),$Processor.description,$htmlwhite))
+		$columnHeaders = @("Name",($global:htmlsb),$Processor.name,$htmlwhite)
+		$rowdata += @(,('Description',($global:htmlsb),$Processor.description,$htmlwhite))
 
-		$rowdata += @(,('Max Clock Speed',($htmlsilver -bor $htmlBold),"$($processor.maxclockspeed) MHz",$htmlwhite))
+		$rowdata += @(,('Max Clock Speed',($global:htmlsb),"$($processor.maxclockspeed) MHz",$htmlwhite))
 		If($processor.l2cachesize -gt 0)
 		{
-			$rowdata += @(,('L2 Cache Size',($htmlsilver -bor $htmlBold),"$($processor.l2cachesize) KB",$htmlwhite))
+			$rowdata += @(,('L2 Cache Size',($global:htmlsb),"$($processor.l2cachesize) KB",$htmlwhite))
 		}
 		If($processor.l3cachesize -gt 0)
 		{
-			$rowdata += @(,('L3 Cache Size',($htmlsilver -bor $htmlBold),"$($processor.l3cachesize) KB",$htmlwhite))
+			$rowdata += @(,('L3 Cache Size',($global:htmlsb),"$($processor.l3cachesize) KB",$htmlwhite))
 		}
 		If($processor.numberofcores -gt 0)
 		{
-			$rowdata += @(,('Number of Cores',($htmlsilver -bor $htmlBold),$Processor.numberofcores,$htmlwhite))
+			$rowdata += @(,('Number of Cores',($global:htmlsb),$Processor.numberofcores,$htmlwhite))
 		}
 		If($processor.numberoflogicalprocessors -gt 0)
 		{
-			$rowdata += @(,('Number of Logical Processors (cores w/HT)',($htmlsilver -bor $htmlBold),$Processor.numberoflogicalprocessors,$htmlwhite))
+			$rowdata += @(,('Number of Logical Processors (cores w/HT)',($global:htmlsb),$Processor.numberoflogicalprocessors,$htmlwhite))
 		}
-		$rowdata += @(,('Availability',($htmlsilver -bor $htmlBold),$xAvailability,$htmlwhite))
+		$rowdata += @(,('Availability',($global:htmlsb),$xAvailability,$htmlwhite))
 
 		$msg = ""
 		$columnWidths = @("150px","200px")
@@ -7438,98 +7420,98 @@ Function OutputNicItem
 	If($HTML)
 	{
 		$rowdata = @()
-		$columnHeaders = @("Name",($htmlsilver -bor $htmlBold),$ThisNic.Name,$htmlwhite)
+		$columnHeaders = @("Name",($global:htmlsb),$ThisNic.Name,$htmlwhite)
 		If($ThisNic.Name -ne $nic.description)
 		{
-			$rowdata += @(,('Description',($htmlsilver -bor $htmlBold),$Nic.description,$htmlwhite))
+			$rowdata += @(,('Description',($global:htmlsb),$Nic.description,$htmlwhite))
 		}
-		$rowdata += @(,('Connection ID',($htmlsilver -bor $htmlBold),$ThisNic.NetConnectionID,$htmlwhite))
+		$rowdata += @(,('Connection ID',($global:htmlsb),$ThisNic.NetConnectionID,$htmlwhite))
 		If(validObject $Nic Manufacturer)
 		{
-			$rowdata += @(,('Manufacturer',($htmlsilver -bor $htmlBold),$Nic.manufacturer,$htmlwhite))
+			$rowdata += @(,('Manufacturer',($global:htmlsb),$Nic.manufacturer,$htmlwhite))
 		}
-		$rowdata += @(,('Availability',($htmlsilver -bor $htmlBold),$xAvailability,$htmlwhite))
-		$rowdata += @(,('Allow the computer to turn off this device to save power',($htmlsilver -bor $htmlBold),$PowerSaving,$htmlwhite))
-		$rowdata += @(,('Physical Address',($htmlsilver -bor $htmlBold),$Nic.macaddress,$htmlwhite))
-		$rowdata += @(,('Receive Side Scaling',($htmlsilver -bor $htmlbold),$RSSEnabled,$htmlwhite))
-		$rowdata += @(,('IP Address',($htmlsilver -bor $htmlBold),$xIPAddress[0],$htmlwhite))
+		$rowdata += @(,('Availability',($global:htmlsb),$xAvailability,$htmlwhite))
+		$rowdata += @(,('Allow the computer to turn off this device to save power',($global:htmlsb),$PowerSaving,$htmlwhite))
+		$rowdata += @(,('Physical Address',($global:htmlsb),$Nic.macaddress,$htmlwhite))
+		$rowdata += @(,('Receive Side Scaling',($global:htmlsb),$RSSEnabled,$htmlwhite))
+		$rowdata += @(,('IP Address',($global:htmlsb),$xIPAddress[0],$htmlwhite))
 		$cnt = -1
 		ForEach($tmp in $xIPAddress)
 		{
 			$cnt++
 			If($cnt -gt 0)
 			{
-				$rowdata += @(,('IP Address',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+				$rowdata += @(,('IP Address',($global:htmlsb),$tmp,$htmlwhite))
 			}
 		}
-		$rowdata += @(,('Default Gateway',($htmlsilver -bor $htmlBold),$Nic.Defaultipgateway[0],$htmlwhite))
-		$rowdata += @(,('Subnet Mask',($htmlsilver -bor $htmlBold),$xIPSubnet[0],$htmlwhite))
+		$rowdata += @(,('Default Gateway',($global:htmlsb),$Nic.Defaultipgateway[0],$htmlwhite))
+		$rowdata += @(,('Subnet Mask',($global:htmlsb),$xIPSubnet[0],$htmlwhite))
 		$cnt = -1
 		ForEach($tmp in $xIPSubnet)
 		{
 			$cnt++
 			If($cnt -gt 0)
 			{
-				$rowdata += @(,('Subnet Mask',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+				$rowdata += @(,('Subnet Mask',($global:htmlsb),$tmp,$htmlwhite))
 			}
 		}
 		If($nic.dhcpenabled)
 		{
 			$DHCPLeaseObtainedDate = $nic.ConvertToDateTime($nic.dhcpleaseobtained)
 			$DHCPLeaseExpiresDate = $nic.ConvertToDateTime($nic.dhcpleaseexpires)
-			$rowdata += @(,('DHCP Enabled',($htmlsilver -bor $htmlBold),$Nic.dhcpenabled,$htmlwhite))
-			$rowdata += @(,('DHCP Lease Obtained',($htmlsilver -bor $htmlBold),$dhcpleaseobtaineddate,$htmlwhite))
-			$rowdata += @(,('DHCP Lease Expires',($htmlsilver -bor $htmlBold),$dhcpleaseexpiresdate,$htmlwhite))
-			$rowdata += @(,('DHCP Server',($htmlsilver -bor $htmlBold),$Nic.dhcpserver,$htmlwhite))
+			$rowdata += @(,('DHCP Enabled',($global:htmlsb),$Nic.dhcpenabled,$htmlwhite))
+			$rowdata += @(,('DHCP Lease Obtained',($global:htmlsb),$dhcpleaseobtaineddate,$htmlwhite))
+			$rowdata += @(,('DHCP Lease Expires',($global:htmlsb),$dhcpleaseexpiresdate,$htmlwhite))
+			$rowdata += @(,('DHCP Server',($global:htmlsb),$Nic.dhcpserver,$htmlwhite))
 		}
 		If(![String]::IsNullOrEmpty($nic.dnsdomain))
 		{
-			$rowdata += @(,('DNS Domain',($htmlsilver -bor $htmlBold),$Nic.dnsdomain,$htmlwhite))
+			$rowdata += @(,('DNS Domain',($global:htmlsb),$Nic.dnsdomain,$htmlwhite))
 		}
 		If($Null -ne $nic.dnsdomainsuffixsearchorder -and $nic.dnsdomainsuffixsearchorder.length -gt 0)
 		{
-			$rowdata += @(,('DNS Search Suffixes',($htmlsilver -bor $htmlBold),$xnicdnsdomainsuffixsearchorder[0],$htmlwhite))
+			$rowdata += @(,('DNS Search Suffixes',($global:htmlsb),$xnicdnsdomainsuffixsearchorder[0],$htmlwhite))
 			$cnt = -1
 			ForEach($tmp in $xnicdnsdomainsuffixsearchorder)
 			{
 				$cnt++
 				If($cnt -gt 0)
 				{
-					$rowdata += @(,('',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+					$rowdata += @(,('',($global:htmlsb),$tmp,$htmlwhite))
 				}
 			}
 		}
-		$rowdata += @(,('DNS WINS Enabled',($htmlsilver -bor $htmlBold),$xdnsenabledforwinsresolution,$htmlwhite))
+		$rowdata += @(,('DNS WINS Enabled',($global:htmlsb),$xdnsenabledforwinsresolution,$htmlwhite))
 		If($Null -ne $nic.dnsserversearchorder -and $nic.dnsserversearchorder.length -gt 0)
 		{
-			$rowdata += @(,('DNS Servers',($htmlsilver -bor $htmlBold),$xnicdnsserversearchorder[0],$htmlwhite))
+			$rowdata += @(,('DNS Servers',($global:htmlsb),$xnicdnsserversearchorder[0],$htmlwhite))
 			$cnt = -1
 			ForEach($tmp in $xnicdnsserversearchorder)
 			{
 				$cnt++
 				If($cnt -gt 0)
 				{
-					$rowdata += @(,('',($htmlsilver -bor $htmlBold),$tmp,$htmlwhite))
+					$rowdata += @(,('',($global:htmlsb),$tmp,$htmlwhite))
 				}
 			}
 		}
-		$rowdata += @(,('NetBIOS Setting',($htmlsilver -bor $htmlBold),$xTcpipNetbiosOptions,$htmlwhite))
-		$rowdata += @(,('WINS: Enabled LMHosts',($htmlsilver -bor $htmlBold),$xwinsenablelmhostslookup,$htmlwhite))
+		$rowdata += @(,('NetBIOS Setting',($global:htmlsb),$xTcpipNetbiosOptions,$htmlwhite))
+		$rowdata += @(,('WINS: Enabled LMHosts',($global:htmlsb),$xwinsenablelmhostslookup,$htmlwhite))
 		If(![String]::IsNullOrEmpty($nic.winshostlookupfile))
 		{
-			$rowdata += @(,('Host Lookup File',($htmlsilver -bor $htmlBold),$Nic.winshostlookupfile,$htmlwhite))
+			$rowdata += @(,('Host Lookup File',($global:htmlsb),$Nic.winshostlookupfile,$htmlwhite))
 		}
 		If(![String]::IsNullOrEmpty($nic.winsprimaryserver))
 		{
-			$rowdata += @(,('Primary Server',($htmlsilver -bor $htmlBold),$Nic.winsprimaryserver,$htmlwhite))
+			$rowdata += @(,('Primary Server',($global:htmlsb),$Nic.winsprimaryserver,$htmlwhite))
 		}
 		If(![String]::IsNullOrEmpty($nic.winssecondaryserver))
 		{
-			$rowdata += @(,('Secondary Server',($htmlsilver -bor $htmlBold),$Nic.winssecondaryserver,$htmlwhite))
+			$rowdata += @(,('Secondary Server',($global:htmlsb),$Nic.winssecondaryserver,$htmlwhite))
 		}
 		If(![String]::IsNullOrEmpty($nic.winsscopeid))
 		{
-			$rowdata += @(,('Scope ID',($htmlsilver -bor $htmlBold),$Nic.winsscopeid,$htmlwhite))
+			$rowdata += @(,('Scope ID',($global:htmlsb),$Nic.winsscopeid,$htmlwhite))
 		}
 
 		$msg = ""
@@ -7686,13 +7668,13 @@ Function GetConfigWizardInfo
 	{
 		WriteHTMLLine 3 0 "Configuration Wizard Settings"
 		$rowdata = @()
-		$columnHeaders = @("DHCP Services",($htmlsilver -bor $htmlbold),$DHCPServices,$htmlwhite)
-		$rowdata += @(,('PXE Services',($htmlsilver -bor $htmlbold),$PXEServices,$htmlwhite))
-		$rowdata += @(,('User account',($htmlsilver -bor $htmlbold),$UserAccount,$htmlwhite))
-		$rowdata += @(,('TFTP Option',($htmlsilver -bor $htmlbold),$TFTPOption,$htmlwhite))
+		$columnHeaders = @("DHCP Services",($global:htmlsb),$DHCPServices,$htmlwhite)
+		$rowdata += @(,('PXE Services',($global:htmlsb),$PXEServices,$htmlwhite))
+		$rowdata += @(,('User account',($global:htmlsb),$UserAccount,$htmlwhite))
+		$rowdata += @(,('TFTP Option',($global:htmlsb),$TFTPOption,$htmlwhite))
 		If($TFTPOptionValue -eq 1)
 		{
-			$rowdata += @(,('TFTP Bootstrap Location',($htmlsilver -bor $htmlbold),$TFTPBootstrapLocation,$htmlwhite))
+			$rowdata += @(,('TFTP Bootstrap Location',($global:htmlsb),$TFTPBootstrapLocation,$htmlwhite))
 		}
 		
 		$msg = ""
@@ -7747,7 +7729,7 @@ Function GetDisableTaskOffloadInfo
 	{
 		WriteHTMLLine 3 0 "TaskOffload Settings"
 		$rowdata = @()
-		$columnHeaders = @("Value",($htmlsilver -bor $htmlbold),$TaskOffloadValue,$htmlwhite)
+		$columnHeaders = @("Value",($global:htmlsb),$TaskOffloadValue,$htmlwhite)
 		
 		$msg = ""
 		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -8178,18 +8160,18 @@ Function GetBootstrapInfo
 						If($Script:PVSVersion -eq "7")
 						{
 							$columnHeaders = @(
-							'IP Address',($htmlsilver -bor $htmlbold),
-							'Port',($htmlsilver -bor $htmlbold),
-							'Subnet Mask',($htmlsilver -bor $htmlbold),
-							'Gateway',($htmlsilver -bor $htmlbold))
+							'IP Address',($global:htmlsb),
+							'Port',($global:htmlsb),
+							'Subnet Mask',($global:htmlsb),
+							'Gateway',($global:htmlsb))
 						}
 						Else
 						{
 							$columnHeaders = @(
-							'IP Address',($htmlsilver -bor $htmlbold),
-							'Subnet Mask',($htmlsilver -bor $htmlbold),
-							'Gateway',($htmlsilver -bor $htmlbold),
-							'Port',($htmlsilver -bor $htmlbold))
+							'IP Address',($global:htmlsb),
+							'Subnet Mask',($global:htmlsb),
+							'Gateway',($global:htmlsb),
+							'Port',($global:htmlsb))
 						}
 							
 						$msg = "General"
@@ -8273,13 +8255,13 @@ Function GetBootstrapInfo
 				If($HTML)
 				{
 					$rowdata = @()
-					$columnHeaders = @("Verbose mode",($htmlsilver -bor $htmlbold),$verboseMode,$htmlwhite)
-					$rowdata += @(,('Interrupt safe mode',($htmlsilver -bor $htmlbold),$interruptSafeMode,$htmlwhite))
-					$rowdata += @(,('Advanced Memory Support',($htmlsilver -bor $htmlbold),$paeMode,$htmlwhite))
-					$rowdata += @(,('Network recovery method',($htmlsilver -bor $htmlbold),$bootFromHdOnFail,$htmlwhite))
-					$rowdata += @(,('Timeouts',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-					$rowdata += @(,('     Login polling timeout',($htmlsilver -bor $htmlbold),"$($ServerBootstrap.pollingTimeout) (milliseconds)",$htmlwhite))
-					$rowdata += @(,('     Login general timeout',($htmlsilver -bor $htmlbold),"$($ServerBootstrap.generalTimeout) (milliseconds)",$htmlwhite))
+					$columnHeaders = @("Verbose mode",($global:htmlsb),$verboseMode,$htmlwhite)
+					$rowdata += @(,('Interrupt safe mode',($global:htmlsb),$interruptSafeMode,$htmlwhite))
+					$rowdata += @(,('Advanced Memory Support',($global:htmlsb),$paeMode,$htmlwhite))
+					$rowdata += @(,('Network recovery method',($global:htmlsb),$bootFromHdOnFail,$htmlwhite))
+					$rowdata += @(,('Timeouts',($global:htmlsb),"",$htmlwhite))
+					$rowdata += @(,('     Login polling timeout',($global:htmlsb),"$($ServerBootstrap.pollingTimeout) (milliseconds)",$htmlwhite))
+					$rowdata += @(,('     Login general timeout',($global:htmlsb),"$($ServerBootstrap.generalTimeout) (milliseconds)",$htmlwhite))
 					
 					$msg = "Options"
 					FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -8926,24 +8908,6 @@ Function ProcessvDisksinFarm
 					$CachedSecretsCleanup = "No"
 				}
 			}
-			Switch ($Disk.licenseMode)
-			{
-				0 		{$licenseMode = "None"; Break}
-				1 		{$licenseMode = "Multiple Activation Key (MAK)"; Break}
-				2 		{$licenseMode = "Key Management Service (KMS)"; Break}
-				Default {$licenseMode = "Volume License Mode could not be determined: $($Disk.licenseMode)"; Break}
-			}
-			If($Script:Version -ge "7.22")
-			{
-				If($Disk.AccelerateOfficeActivation -eq "1")
-				{
-					$AccelerateOfficeActivation = "Yes"
-				}
-				Else
-				{
-					$AccelerateOfficeActivation = "No"
-				}
-			}
 			If($Disk.autoUpdateEnabled -eq "1")
 			{
 				$autoUpdateEnabled = "Yes"
@@ -9044,34 +9008,34 @@ Function ProcessvDisksinFarm
 				WriteHTMLLine 3 0 $Disk.diskLocatorName
 				WriteHTMLLine 4 0 "vDisk Properties"
 				$rowdata = @()
-				$columnHeaders = @("Site",($htmlsilver -bor $htmlbold),$Disk.siteName,$htmlwhite)
-				$rowdata += @(,('Store',($htmlsilver -bor $htmlbold),$Disk.storeName,$htmlwhite))
-				$rowdata += @(,('Filename',($htmlsilver -bor $htmlbold),$Disk.diskLocatorName,$htmlwhite))
-				$rowdata += @(,('Size',($htmlsilver -bor $htmlbold),"$($diskSize) MB",$htmlwhite))
-				$rowdata += @(,('VHD block size',($htmlsilver -bor $htmlbold),"$($Disk.vhdBlockSize) KB",$htmlwhite))
-				$rowdata += @(,('Access mode',($htmlsilver -bor $htmlbold),$accessMode,$htmlwhite))
+				$columnHeaders = @("Site",($global:htmlsb),$Disk.siteName,$htmlwhite)
+				$rowdata += @(,('Store',($global:htmlsb),$Disk.storeName,$htmlwhite))
+				$rowdata += @(,('Filename',($global:htmlsb),$Disk.diskLocatorName,$htmlwhite))
+				$rowdata += @(,('Size',($global:htmlsb),"$($diskSize) MB",$htmlwhite))
+				$rowdata += @(,('VHD block size',($global:htmlsb),"$($Disk.vhdBlockSize) KB",$htmlwhite))
+				$rowdata += @(,('Access mode',($global:htmlsb),$accessMode,$htmlwhite))
 				If($Disk.writeCacheType -ne 0)
 				{
-					$rowdata += @(,('Cache type',($htmlsilver -bor $htmlbold),$writeCacheType,$htmlwhite))
+					$rowdata += @(,('Cache type',($global:htmlsb),$writeCacheType,$htmlwhite))
 				}
 				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 3)
 				{
-					$rowdata += @(,('Cache size',($htmlsilver -bor $htmlbold),"$($Disk.writeCacheSize) MB",$htmlwhite))
+					$rowdata += @(,('Cache size',($global:htmlsb),"$($Disk.writeCacheSize) MB",$htmlwhite))
 				}
 				If($Disk.writeCacheType -ne 0 -and $Disk.writeCacheType -eq 9)
 				{
-					$rowdata += @(,('Maximum RAM size',($htmlsilver -bor $htmlbold),"$($Disk.writeCacheSize) MBs",$htmlwhite))
+					$rowdata += @(,('Maximum RAM size',($global:htmlsb),"$($Disk.writeCacheSize) MBs",$htmlwhite))
 				}
 				If(![String]::IsNullOrEmpty($Disk.menuText))
 				{
-					$rowdata += @(,('BIOS boot menu text',($htmlsilver -bor $htmlbold),$Disk.menuText,$htmlwhite))
+					$rowdata += @(,('BIOS boot menu text',($global:htmlsb),$Disk.menuText,$htmlwhite))
 				}
-				$rowdata += @(,('Enable AD machine account password management',($htmlsilver -bor $htmlbold),$adPasswordEnabled,$htmlwhite))
-				$rowdata += @(,('Enable printer management',($htmlsilver -bor $htmlbold),$printerManagementEnabled,$htmlwhite))
-				$rowdata += @(,('Enable streaming of this vDisk',($htmlsilver -bor $htmlbold),$Enabled,$htmlwhite))
+				$rowdata += @(,('Enable AD machine account password management',($global:htmlsb),$adPasswordEnabled,$htmlwhite))
+				$rowdata += @(,('Enable printer management',($global:htmlsb),$printerManagementEnabled,$htmlwhite))
+				$rowdata += @(,('Enable streaming of this vDisk',($global:htmlsb),$Enabled,$htmlwhite))
 				If($Script:PVSFullVersion -ge "7.12")
 				{
-					$rowdata += @(,('Cached secrets cleanup disabled',($htmlsilver -bor $htmlbold),$CachedSecretsCleanup,$htmlwhite))
+					$rowdata += @(,('Cached secrets cleanup disabled',($global:htmlsb),$CachedSecretsCleanup,$htmlwhite))
 				}
 				
 				$msg = "General"
@@ -9079,40 +9043,100 @@ Function ProcessvDisksinFarm
 				WriteHTMLLine 0 0 " "
 			}
 
-#*****FIX ME*****
 			Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Auto Update Tab"
-			Line 4 "Auto Update"
-			If($Disk.activationDateEnabled -eq "0")
+
+			If($Disk.autoUpdateEnabled -eq "1")
 			{
-				Line 5 "Enable automatic updates for the vDisk`t`t: " -nonewline
-				If($Disk.autoUpdateEnabled -eq "1")
-				{
-					Line 0 "Yes"
-				}
-				Else
-				{
-					Line 0 "No"
-				}
-				Line 5 "Apply vDisk updates as soon as they are detected by the server"
+				$autoUpdateEnabled = "Yes"
 			}
 			Else
 			{
-				Line 5 "Enable automatic updates for the vDisk`t`t: " -nonewline
+				$autoUpdateEnabled = "No"
+			}
+
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 4 0 "Auto Update"
+				[System.Collections.Hashtable[]] $ScriptInformation = @()
+				$ScriptInformation += @{ Data = "Enable automatic updates for the vDisk"; Value = $autoUpdateEnabled; }
 				If($Disk.autoUpdateEnabled -eq "1")
 				{
-					Line 0 "Yes"
+					If($Disk.activationDateEnabled -eq "0")
+					{
+						$ScriptInformation += @{ Data = "Apply vDisk updates as soon as they are detected by the server"; Value = ""; }
+					}
+					Else
+					{
+						$ScriptInformation += @{ Data = "Schedule the next vDisk update to occur on"; Value = $Disk.activeDate; }
+					}
 				}
-				Else
-				{
-					Line 0 "No"
-				}
-				Line 5 "Schedule the next vDisk update to occur on`t: $($Disk.activeDate)"
+				$Table = AddWordTable -Hashtable $ScriptInformation `
+				-Columns Data,Value `
+				-List `
+				-Format $wdTableGrid `
+				-AutoFit $wdAutoFitContent;
+
+				SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+				$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+				FindWordDocumentEnd
+				$Table = $Null
+				WriteWordLine 0 0 ""
 			}
+			If($Text)
+			{
+				Line 2 "Auto Update"
+				Line 3 "Enable automatic updates for the vDisk: " $autoUpdateEnabled
+				If($Disk.autoUpdateEnabled -eq "1")
+				{
+					If($Disk.activationDateEnabled -eq "0")
+					{
+						Line 3 "Apply vDisk updates as soon as they are detected by the server"
+					}
+					Else
+					{
+						Line 3 "Schedule the next vDisk update to occur on`t: $($Disk.activeDate)"
+					}
+				}
+				Line 0 ""
+			}
+			If($HTML)
+			{
+				$rowdata = @()
+				$columnHeaders = @("Enable automatic updates for the vDisk",($global:htmlsb),$autoUpdateEnabled,$htmlwhite)
+				If($Disk.autoUpdateEnabled -eq "1")
+				{
+					If($Disk.activationDateEnabled -eq "0")
+					{
+						$rowdata += @(,('',($global:htmlsb),"Apply vDisk updates as soon as they are detected by the server",$htmlwhite))
+					}
+					Else
+					{
+						$rowdata += @(,('',($global:htmlsb),"Schedule the next vDisk update to occur on: $($Disk.activeDate)",$htmlwhite))
+					}
+				}
+				
+				$msg = "Auto Update"
+				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+			}
+			
 			#process Versions menu
 			#get versions info
 			#thanks to the PVS Product team for their help in understanding the Versions information
 			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing vDisk Versions"
-			Line 3 "vDisk Versions"
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 4 0 "vDisk Versions"
+			}
+			If($Text)
+			{
+				Line 3 "vDisk Versions"
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 4 0 "vDisk Versions"
+			}
 			$error.Clear()
 			$MCLIGetResult = Mcli-Get DiskVersion -p diskLocatorName="$($Disk.diskLocatorName)",storeName="$($disk.storeName)",siteName="$($disk.siteName)"
 			If($error.Count -eq 0)
@@ -9168,174 +9192,379 @@ Function ProcessvDisksinFarm
 						}
 					}
 					
-					Line 4 "Boot production devices from version`t`t: " -NoNewLine
+					$tmp = ""
 					If($BootOverride)
 					{
-						Line 0 $BootingVersion
+						$tmp = $BootingVersion
 					}
 					Else
 					{
-						Line 0 "Newest released"
+						$tmp = "Newest released"
 					}
-					Line 0 ""
+
+					If($MSWord -or $PDF)
+					{
+						[System.Collections.Hashtable[]] $ScriptInformation = @()
+						$ScriptInformation += @{ Data = "Boot production devices from version"; Value = $tmp; }
+						$FirstWord = $True
+					}
+					If($Text)
+					{
+						Line 4 "Boot production devices from version`t: " $tmp
+					}
+					If($HTML)
+					{
+						$rowdata = @()
+						$columnHeaders = @("Boot production devices from version",($global:htmlsb),$tmp,$htmlwhite)
+						$FirstHTML = $True
+					}
 					
 					$VersionFlag = $False
 					ForEach($DiskVersion in $DiskVersions)
 					{
 						Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing vDisk Version $($DiskVersion.version)"
-						Line 4 "Version`t`t`t`t`t`t: " -NoNewLine
-						If($DiskVersion.version -eq $BootingVersion)
-						{
-							Line 0 "$($DiskVersion.version) (Current booting version)"
-						}
-						Else
-						{
-							Line 0 $DiskVersion.version
-						}
+
 						If($DiskVersion.version -gt $Script:farm.maxVersions -and $VersionFlag -eq $False)
 						{
 							$VersionFlag = $True
-							Line 4 "Version of vDisk is $($DiskVersion.version) which is greater than the limit of $($Script:farm.maxVersions). Consider merging."
 							
 							$obj1 = [PSCustomObject] @{
 								vDiskName = $Disk.diskLocatorName								
 							}
 							$null = $Script:VersionsToMerge.Add($obj1)
 						}
-						Line 4 "Created`t`t`t`t`t`t: " $DiskVersion.createDate
-						If(![String]::IsNullOrEmpty($DiskVersion.scheduledDate))
+
+						If($DiskVersion.version -eq $BootingVersion)
 						{
-							Line 4 "Released`t`t`t`t`t: " $DiskVersion.scheduledDate
+							$BootFromVersion = "$($DiskVersion.version) (Current booting version)"
 						}
-						Line 4 "Devices`t`t`t`t`t`t: " $DiskVersion.deviceCount
-						Line 4 "Access`t`t`t`t`t`t: " -NoNewLine
+						Else
+						{
+							$BootFromVersion = $DiskVersion.version.ToString()
+						}
+
 						Switch ($DiskVersion.access)
 						{
-							"0" {Line 0 "Production"; Break}
-							"1" {Line 0 "Maintenance"; Break}
-							"2" {Line 0 "Maintenance Highest Version"; Break}
-							"3" {Line 0 "Override"; Break}
-							"4" {Line 0 "Merge"; Break}
-							"5" {Line 0 "Merge Maintenance"; Break}
-							"6" {Line 0 "Merge Test"; Break}
-							"7" {Line 0 "Test"; Break}
-							Default {Line 0 "Access could not be determined: $($DiskVersion.access)"; Break}
+							"0" 	{$access = "Production"; Break }
+							"1" 	{$access = "Maintenance"; Break }
+							"2" 	{$access = "Maintenance Highest Version"; Break }
+							"3" 	{$access = "Override"; Break }
+							"4" 	{$access = "Merge"; Break }
+							"5" 	{$access = "Merge Maintenance"; Break }
+							"6" 	{$access = "Merge Test"; Break }
+							"7" 	{$access = "Test"; Break }
+							Default {$access = "Access could not be determined: $($DiskVersion.access)"; Break }
 						}
-						Line 4 "Type`t`t`t`t`t`t: " -NoNewLine
+
 						Switch ($DiskVersion.type)
 						{
-							"0" {Line 0 "Base"; Break}
-							"1" {Line 0 "Manual"; Break}
-							"2" {Line 0 "Automatic"; Break}
-							"3" {Line 0 "Merge"; Break}
-							"4" {Line 0 "Merge Base"; Break}
-							Default {Line 0 "Type could not be determined: $($DiskVersion.type)"; Break}
+							"0" 	{$DiskVersionType = "Base"; Break }
+							"1" 	{$DiskVersionType = "Manual"; Break }
+							"2" 	{$DiskVersionType = "Automatic"; Break }
+							"3" 	{$DiskVersionType = "Merge"; Break }
+							"4" 	{$DiskVersionType = "Merge Base"; Break }
+							Default {$DiskVersionType = "Type could not be determined: $($DiskVersion.type)"; Break }
 						}
-						If(![String]::IsNullOrEmpty($DiskVersion.description))
-						{
-							Line 4 "Properties`t`t`t`t`t: " $DiskVersion.description
-						}
-						Line 4 "Can Delete`t`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canDelete)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canDelete = "No"; Break }
+							"1"	{$canDelete = "Yes"; Break }
 						}
-						Line 4 "Can Merge`t`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canMerge)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canMerge = "No"; Break }
+							"1"	{$canMerge = "Yes"; Break }
 						}
-						Line 4 "Can Merge Base`t`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canMergeBase)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canMergeBase = "No"; Break }
+							"1"	{$canMergeBase = "Yes"; Break }
 						}
-						Line 4 "Can Promote`t`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canPromote)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canPromote = "No"; Break }
+							"1"	{$canPromote = "Yes"; Break }
 						}
-						Line 4 "Can Revert back to Test`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canRevertTest)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canRevertTest = "No"; Break }
+							"1"	{$canRevertTest = "Yes"; Break }
 						}
-						Line 4 "Can Revert back to Maintenance`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canRevertMaintenance)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canRevertMaintenance = "No"; Break }
+							"1"	{$canRevertMaintenance = "Yes"; Break }
 						}
-						Line 4 "Can Set Scheduled Date`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canSetScheduledDate)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canSetScheduledDate = "No"; Break }
+							"1"	{$canSetScheduledDate = "Yes"; Break }
 						}
-						Line 4 "Can Override`t`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.canOverride)
 						{
-							0 {Line 0 "No"; Break}
-							1 {Line 0 "Yes"; Break}
+							"0"	{$canOverride = "No"; Break }
+							"1"	{$canOverride = "Yes"; Break }
 						}
-						Line 4 "Is Pending`t`t`t`t`t: "  -NoNewLine
+
 						Switch ($DiskVersion.isPending)
 						{
-							0 {Line 0 "No, version Scheduled Date has occurred"; Break}
-							1 {Line 0 "Yes, version Scheduled Date has not occurred"; Break}
+							"0"	{$isPending = "No, version Scheduled Date has occurred"; Break }
+							"1"	{$isPending = "Yes, version Scheduled Date has not occurred"; Break }
 						}
-						Line 4 "Replication Status`t`t`t`t: " -NoNewLine
+
 						Switch ($DiskVersion.goodInventoryStatus)
 						{
-							0 {Line 0 "Not available on all servers"; Break}
-							1 {Line 0 "Available on all servers"; Break}
-							Default {Line 0 "Replication status could not be determined: $($DiskVersion.goodInventoryStatus)"; Break}
+							"0"		{$goodInventoryStatus = "Not available on all servers"; Break }
+							"1"		{$goodInventoryStatus = "Available on all servers"; Break }
+							Default {$goodInventoryStatus = "Replication status could not be determined: $($DiskVersion.goodInventoryStatus)"; Break }
 						}
-						Line 4 "Disk Filename`t`t`t`t`t: " $DiskVersion.diskFileName
-						Line 0 ""
+
+						If($MSWord -or $PDF)
+						{
+							If(!$FirstWord)
+							{
+								[System.Collections.Hashtable[]] $ScriptInformation = @()
+							}
+							$ScriptInformation += @{ Data = "Version"; Value = $BootFromVersion; }
+							If($DiskVersion.version -gt $Script:farm.maxVersions -and $VersionFlag -eq $False)
+							{
+								$ScriptInformation += @{ Data = "Version of vDisk is $($DiskVersion.version) which is greater than the limit of $($Script:farm.maxVersions)"; Value = "Consider merging"; }
+							}
+							$ScriptInformation += @{ Data = "Created"; Value = $DiskVersion.createDate; }
+							If(![String]::IsNullOrEmpty($DiskVersion.scheduledDate))
+							{
+								$ScriptInformation += @{ Data = "Released"; Value = $DiskVersion.scheduledDate; }
+							}
+							$ScriptInformation += @{ Data = "Devices"; Value = $DiskVersion.deviceCount; }
+							$ScriptInformation += @{ Data = "Access"; Value = $access; }
+							$ScriptInformation += @{ Data = "Type"; Value = $DiskVersionType; }
+							If(![String]::IsNullOrEmpty($DiskVersion.description))
+							{
+								$ScriptInformation += @{ Data = "Properties"; Value = $DiskVersion.description; }
+							}
+							$ScriptInformation += @{ Data = "Can Delete"; Value = $canDelete; }
+							$ScriptInformation += @{ Data = "Can Merge"; Value = $canMerge; }
+							$ScriptInformation += @{ Data = "Can Merge Base"; Value = $canMergeBase; }
+							$ScriptInformation += @{ Data = "Can Promote"; Value = $canPromote; }
+							$ScriptInformation += @{ Data = "Can Revert back to Test"; Value = $canRevertTest; }
+							$ScriptInformation += @{ Data = "Can Revert back to Maintenance"; Value = $canRevertMaintenance; }
+							$ScriptInformation += @{ Data = "Can Set Scheduled Date"; Value = $canSetScheduledDate; }
+							$ScriptInformation += @{ Data = "Can Override"; Value = $canOverride; }
+							$ScriptInformation += @{ Data = "Is Pending"; Value = $isPending; }
+							$ScriptInformation += @{ Data = "Replication Status"; Value = $goodInventoryStatus; }
+							$ScriptInformation += @{ Data = "Disk Filename"; Value = $DiskVersion.diskFileName; }
+							$Table = AddWordTable -Hashtable $ScriptInformation `
+							-Columns Data,Value `
+							-List `
+							-Format $wdTableGrid `
+							-AutoFit $wdAutoFitContent;
+
+							SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+							$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+							FindWordDocumentEnd
+							$Table = $Null
+							WriteWordLine 0 0 ""
+							$FirstWord = $False
+						}
+						If($Text)
+						{
+							Line 4 "Version`t`t`t`t`t: " $BootFromVersion
+							If($DiskVersion.version -gt $Script:farm.maxVersions -and $VersionFlag -eq $False)
+							{
+								Line 4 "Version of vDisk is $($DiskVersion.version) which is greater than the limit of $($Script:farm.maxVersions). Consider merging."
+							}
+							Line 4 "Created`t`t`t`t`t: " $DiskVersion.createDate
+							If(![String]::IsNullOrEmpty($DiskVersion.scheduledDate))
+							{
+								Line 4 "Released`t`t`t`t: " $DiskVersion.scheduledDate
+							}
+							Line 4 "Devices`t`t`t`t`t: " $DiskVersion.deviceCount
+							Line 4 "Access`t`t`t`t`t: " $access
+							Line 4 "Type`t`t`t`t`t: " $DiskVersionType
+							If(![String]::IsNullOrEmpty($DiskVersion.description))
+							{
+								Line 4 "Properties`t`t`t`t: " $DiskVersion.description
+							}
+							Line 4 "Can Delete`t`t`t`t: " $canDelete
+							Line 4 "Can Merge`t`t`t`t: " $canMerge
+							Line 4 "Can Merge Base`t`t`t`t: " $canMergeBase
+							Line 4 "Can Promote`t`t`t`t: " $canPromote
+							Line 4 "Can Revert back to Test`t`t`t: " $canRevertTest
+							Line 4 "Can Revert back to Maintenance`t`t: " $canRevertMaintenance
+							Line 4 "Can Set Scheduled Date`t`t`t: " $canSetScheduledDate
+							Line 4 "Can Override`t`t`t`t: " $canOverride
+							Line 4 "Is Pending`t`t`t`t: " $isPending
+							Line 4 "Replication Status`t`t`t: " $goodInventoryStatus
+							Line 4 "Disk Filename`t`t`t`t: " $DiskVersion.diskFileName
+							Line 0 ""
+						}
+						If($HTML)
+						{
+							If(!$FirstHTML)
+							{
+								$rowdata = @()
+								$columnHeaders = @("Version",($global:htmlsb),$BootFromVersion,$htmlwhite)
+							}
+							Else
+							{
+								$rowdata += @(,('Version',($global:htmlsb),$BootFromVersion,$htmlwhite))
+							}
+							If($DiskVersion.version -gt $Script:farm.maxVersions -and $VersionFlag -eq $False)
+							{
+								$rowdata += @(,('Version of vDisk is $($DiskVersion.version) which is greater than the limit of $($Script:farm.maxVersions)',($global:htmlsb),"Consider merging",$htmlwhite))
+							}
+							$rowdata += @(,('Created',($global:htmlsb),$DiskVersion.createDate,$htmlwhite))
+							If(![String]::IsNullOrEmpty($DiskVersion.scheduledDate))
+							{
+								$rowdata += @(,('Released',($global:htmlsb),$DiskVersion.scheduledDate,$htmlwhite))
+							}
+							$rowdata += @(,('Devices',($global:htmlsb),$DiskVersion.deviceCount,$htmlwhite))
+							$rowdata += @(,('Access',($global:htmlsb),$access,$htmlwhite))
+							$rowdata += @(,('Type',($global:htmlsb),$DiskVersionType,$htmlwhite))
+							If(![String]::IsNullOrEmpty($DiskVersion.description))
+							{
+								$rowdata += @(,('Properties',($global:htmlsb),$DiskVersion.description,$htmlwhite))
+							}
+							$rowdata += @(,('Can Delete',($global:htmlsb),$canDelete,$htmlwhite))
+							$rowdata += @(,('Can Merge',($global:htmlsb),$canMerge,$htmlwhite))
+							$rowdata += @(,('Can Merge Base',($global:htmlsb),$canMergeBase,$htmlwhite))
+							$rowdata += @(,('Can Promote',($global:htmlsb),$canPromote,$htmlwhite))
+							$rowdata += @(,('Can Revert back to Test',($global:htmlsb),$canRevertTest,$htmlwhite))
+							$rowdata += @(,('Can Revert back to Maintenance',($global:htmlsb),$canRevertMaintenance,$htmlwhite))
+							$rowdata += @(,('Can Set Scheduled Date',($global:htmlsb),$canSetScheduledDate,$htmlwhite))
+							$rowdata += @(,('Can Override',($global:htmlsb),$canOverride,$htmlwhite))
+							$rowdata += @(,('Is Pending',($global:htmlsb),$isPending,$htmlwhite))
+							$rowdata += @(,('Replication Status',($global:htmlsb),$goodInventoryStatus,$htmlwhite))
+							$rowdata += @(,('Disk Filename',($global:htmlsb),$DiskVersion.diskFileName,$htmlwhite))
+					
+							$msg = "Boot production devices from version: $($tmp)"
+							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+							#WriteHTMLLine 0 0 " "
+							$FirstHTML = $False
+						}
 					}
 				}
 			}
 			Else
 			{
-				Line 0 "Disk Version information could not be retrieved"
-				Line 0 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+				If($MSWord -or $PDF)
+				{
+					WriteWordLine 0 0 "Disk Version information could not be retrieved"
+					WriteWordLine 0 0 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+				}
+				If($Text)
+				{
+					Line 0 "Disk Version information could not be retrieved"
+					Line 0 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+				}
+				If($HTML)
+				{
+					WriteHTMLLine 0 0 "Disk Version information could not be retrieved"
+					WriteHTMLLine 0 0 "Error returned is " $error[0].FullyQualifiedErrorId.Split(',')[0].Trim()
+				}
 			}
 			
 			#process vDisk Load Balancing Menu
 			Write-Verbose "$(Get-Date -Format G): `t`t`tProcessing vDisk Load Balancing Menu"
-			Line 3 "Load Balancing"
-			If(![String]::IsNullOrEmpty($Disk.serverName))
+			If($Disk.rebalanceEnabled -eq "1")
 			{
-				Line 4 "Use this server to provide the vDisk: " $Disk.serverName
+				$rebalanceEnabled = "Yes"
 			}
 			Else
 			{
-				Line 4 "Subnet Affinity`t`t`t`t`t: " -nonewline
-				Switch ($Disk.subnetAffinity)
+				$rebalanceEnabled = "No"
+			}
+
+			Switch ($Disk.subnetAffinity)
+			{
+				"0"		{$subnetAffinity = "None"; Break}
+				"1"		{$subnetAffinity = "Best Effort"; Break}
+				"2"		{$subnetAffinity = "Fixed"; Break}
+				Default {$subnetAffinity = "Subnet Affinity could not be determined: $($Disk.subnetAffinity)"; Break}
+			}
+
+			If($MSWord -or $PDF)
+			{
+				WriteWordLine 3 0 "vDisk Load Balancing"
+				[System.Collections.Hashtable[]] $ScriptInformation = @()
+				If(![String]::IsNullOrEmpty($Disk.serverName))
 				{
-					0 {Line 0 "None"; Break}
-					1 {Line 0 "Best Effort"; Break}
-					2 {Line 0 "Fixed"; Break}
-					Default {Line 0 "Subnet Affinity could not be determined: $($Disk.subnetAffinity)"; Break}
-				}
-				Line 4 "Rebalance Enabled`t`t`t`t: " -nonewline
-				If($Disk.rebalanceEnabled -eq "1")
-				{
-					Line 0 "Yes"
-					Line 4 "Trigger Percent`t`t`t`t`t: $($Disk.rebalanceTriggerPercent)"
+					$ScriptInformation += @{ Data = "Use this server to provide the vDisk"; Value = $Disk.serverName; }
 				}
 				Else
 				{
-					Line 0 "No"
+					$ScriptInformation += @{ Data = "Subnet Affinity"; Value = $subnetAffinity; }
+					$ScriptInformation += @{ Data = "Rebalance Enabled"; Value = $rebalanceEnabled; }
+					If($Disk.rebalanceEnabled)
+					{
+						$ScriptInformation += @{ Data = "Trigger Percent"; Value = $Disk.rebalanceTriggerPercent; }
+					}
 				}
+
+				$Table = AddWordTable -Hashtable $ScriptInformation `
+				-Columns Data,Value `
+				-List `
+				-Format $wdTableGrid `
+				-AutoFit $wdAutoFitContent;
+
+				SetWordCellFormat -Collection $Table.Columns.Item(1).Cells -Bold -BackgroundColor $wdColorGray15;
+
+				$Table.Rows.SetLeftIndent($Indent0TabStops,$wdAdjustProportional)
+
+				FindWordDocumentEnd
+				$Table = $Null
+				WriteWordLine 0 0 ""
 			}
-			Line 0 ""
+			If($Text)
+			{
+				Line 3 "vDisk Load Balancing"
+				If(![String]::IsNullOrEmpty($Disk.serverName))
+				{
+					Line 4 "Use this server to provide the vDisk: " $Disk.serverName
+				}
+				Else
+				{
+					Line 4 "Subnet Affinity`t`t: " $subnetAffinity
+					Line 4 "Rebalance Enabled`t: " $rebalanceEnabled
+					If($Disk.rebalanceEnabled)
+					{
+						Line 4 "Trigger Percent`t`t: $($Disk.rebalanceTriggerPercent)"
+					}
+				}
+				Line 0 ""
+			}
+			If($HTML)
+			{
+				WriteHTMLLine 3 0 "vDisk Load Balancing"
+				$rowdata = @()
+				If(![String]::IsNullOrEmpty($Disk.serverName))
+				{
+					$columnHeaders = @("Use this server to provide the vDisk",($global:htmlsb),$Disk.serverName,$htmlwhite)
+				}
+				Else
+				{
+					$columnHeaders = @("Subnet Affinity",($global:htmlsb),$subnetAffinity,$htmlwhite)
+					$rowdata += @(,('Rebalance Enabled',($global:htmlsb),$rebalanceEnabled,$htmlwhite))
+					If($Disk.rebalanceEnabled)
+					{
+						$rowdata += @(,('Trigger Percent',($global:htmlsb),"$($Disk.rebalanceTriggerPercent)",$htmlwhite))
+					}
+				}
+				
+				$msg = ""
+				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
+				WriteHTMLLine 0 0 ""
+			}
 		}
 
 		# http://blogs.citrix.com/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/
@@ -9394,11 +9623,11 @@ Function ProcessvDisksinFarm
 		If($HTML)
 		{
 			$rowdata = @()
-			$columnHeaders = @("Number of vDisks that are Enabled and have active connections",($htmlsilver -bor $htmlbold),$NumberofvDisks.ToString(),$htmlwhite)
-			$rowdata += @(,('',($htmlsilver -bor $htmlbold),"",$htmlwhite))
-			$rowdata += @(,('Recommended RAM for each PVS Server using XenDesktop vDisks',($htmlsilver -bor $htmlbold),"$($XDRecRAM)GB",$htmlwhite))
-			$rowdata += @(,('Recommended RAM for each PVS Server using XenApp vDisks',($htmlsilver -bor $htmlbold),"$($XARecRAM)GB",$htmlwhite))
-			$rowdata += @(,('Recommended RAM for each PVS Server using XA & XD vDisks',($htmlsilver -bor $htmlbold),"$($XDXARecRAM)GB",$htmlwhite))
+			$columnHeaders = @("Number of vDisks that are Enabled and have active connections",($global:htmlsb),$NumberofvDisks.ToString(),$htmlwhite)
+			$rowdata += @(,('',($global:htmlsb),"",$htmlwhite))
+			$rowdata += @(,('Recommended RAM for each PVS Server using XenDesktop vDisks',($global:htmlsb),"$($XDRecRAM)GB",$htmlwhite))
+			$rowdata += @(,('Recommended RAM for each PVS Server using XenApp vDisks',($global:htmlsb),"$($XARecRAM)GB",$htmlwhite))
+			$rowdata += @(,('Recommended RAM for each PVS Server using XA & XD vDisks',($global:htmlsb),"$($XDXARecRAM)GB",$htmlwhite))
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
 			WriteHTMLLine 0 0 "This script is not able to tell if a vDisk is running XenDesktop or XenApp"
@@ -9580,7 +9809,7 @@ Function ProcessStores
 				If($Rowdata.Count -gt 0)
 				{
 					$columnHeaders = @(
-						"Store Server",($htmlsilver -bor $htmlbold))
+						"Store Server",($global:htmlsb))
 									
 					$msg = "Servers that provide this store"
 					FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -9686,8 +9915,8 @@ Function ProcessStores
 				If($Rowdata.Count -gt 0)
 				{
 					$columnHeaders = @(
-						"Store Path and Server",($htmlsilver -bor $htmlbold),
-						"Path Status",($htmlsilver -bor $htmlbold))
+						"Store Path and Server",($global:htmlsb),
+						"Path Status",($global:htmlsb))
 									
 					$msg = ""
 					FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -9820,8 +10049,8 @@ Function ProcessStores
 				If($Rowdata.Count -gt 0)
 				{
 					$columnHeaders = @(
-						"Write Cache Path and Server",($htmlsilver -bor $htmlbold),
-						"Path Status",($htmlsilver -bor $htmlbold))
+						"Write Cache Path and Server",($global:htmlsb),
+						"Path Status",($global:htmlsb))
 									
 					$msg = ""
 					FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -9963,15 +10192,15 @@ Function OutputAppendixA
 	If($HTML)
 	{
 		$columnHeaders = @(
-			"Server Name", ($htmlsilver -bor $htmlbold),
-			"Threads per Port", ($htmlsilver -bor $htmlbold),
-			"Buffers per Thread", ($htmlsilver -bor $htmlbold),
-			"Server Cache Timeout", ($htmlsilver -bor $htmlbold),
-			"Local Concurrent IO Limit", ($htmlsilver -bor $htmlbold),
-			"Remote Concurrent IO Limit", ($htmlsilver -bor $htmlbold),
-			"Ethernet MTU", ($htmlsilver -bor $htmlbold),
-			"IO Burst Size", ($htmlsilver -bor $htmlbold),
-			"Enable Non-blocking IO",($htmlsilver -bor $htmlbold))
+			"Server Name", ($global:htmlsb),
+			"Threads per Port", ($global:htmlsb),
+			"Buffers per Thread", ($global:htmlsb),
+			"Server Cache Timeout", ($global:htmlsb),
+			"Local Concurrent IO Limit", ($global:htmlsb),
+			"Remote Concurrent IO Limit", ($global:htmlsb),
+			"Ethernet MTU", ($global:htmlsb),
+			"IO Burst Size", ($global:htmlsb),
+			"Enable Non-blocking IO",($global:htmlsb))
 						
 		$msg = ""
 		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -10082,12 +10311,12 @@ Function OutputAppendixB
 	If($HTML)
 	{
 		$columnHeaders = @(
-			"Server Name", ($htmlsilver -bor $htmlbold),
-			"Boot Pause Seconds", ($htmlsilver -bor $htmlbold),
-			"Maximum Boot Time", ($htmlsilver -bor $htmlbold),
-			"Maximum Devices Booting", ($htmlsilver -bor $htmlbold),
-			"vDisk Creation Pacing", ($htmlsilver -bor $htmlbold),
-			"License Timeout", ($htmlsilver -bor $htmlbold))
+			"Server Name", ($global:htmlsb),
+			"Boot Pause Seconds", ($global:htmlsb),
+			"Maximum Boot Time", ($global:htmlsb),
+			"Maximum Devices Booting", ($global:htmlsb),
+			"vDisk Creation Pacing", ($global:htmlsb),
+			"License Timeout", ($global:htmlsb))
 						
 		$msg = ""
 		FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -10195,11 +10424,11 @@ Function OutputAppendixC
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"DHCP Services", ($htmlsilver -bor $htmlbold),
-				"PXE Services", ($htmlsilver -bor $htmlbold),
-				"TFTP Option", ($htmlsilver -bor $htmlbold),
-				"User Account",($htmlsilver -bor $htmlbold))
+				"Server Name", ($global:htmlsb),
+				"DHCP Services", ($global:htmlsb),
+				"PXE Services", ($global:htmlsb),
+				"TFTP Option", ($global:htmlsb),
+				"User Account",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -10332,12 +10561,12 @@ Function OutputAppendixD
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Bootstrap Name", ($htmlsilver -bor $htmlbold),
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"IP1", ($htmlsilver -bor $htmlbold),
-				"IP2", ($htmlsilver -bor $htmlbold),
-				"IP3", ($htmlsilver -bor $htmlbold),
-				"IP4",($htmlsilver -bor $htmlbold))
+				"Bootstrap Name", ($global:htmlsb),
+				"Server Name", ($global:htmlsb),
+				"IP1", ($global:htmlsb),
+				"IP2", ($global:htmlsb),
+				"IP3", ($global:htmlsb),
+				"IP4",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -10465,8 +10694,8 @@ Function OutputAppendixE
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"DisableTaskOffload Setting",($htmlsilver -bor $htmlbold))
+				"Server Name", ($global:htmlsb),
+				"DisableTaskOffload Setting",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -10610,14 +10839,14 @@ Function OutputAppendixF1
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Display Name", ($htmlsilver -bor $htmlbold),
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Service Name", ($htmlsilver -bor $htmlbold),
-				"Status", ($htmlsilver -bor $htmlbold),
-				"Startup Type", ($htmlsilver -bor $htmlbold),
-				"Started", ($htmlsilver -bor $htmlbold),
-				"State", ($htmlsilver -bor $htmlbold),
-				"Log on as",($htmlsilver -bor $htmlbold))
+				"Display Name", ($global:htmlsb),
+				"Server Name", ($global:htmlsb),
+				"Service Name", ($global:htmlsb),
+				"Status", ($global:htmlsb),
+				"Startup Type", ($global:htmlsb),
+				"Started", ($global:htmlsb),
+				"State", ($global:htmlsb),
+				"Log on as",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -10741,12 +10970,12 @@ Function OutputAppendixF2
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Display Name", ($htmlsilver -bor $htmlbold),
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Service Name", ($htmlsilver -bor $htmlbold),
-				"Failure Action 1", ($htmlsilver -bor $htmlbold),
-				"Failure Action 2", ($htmlsilver -bor $htmlbold),
-				"Failure Action 3",($htmlsilver -bor $htmlbold))
+				"Display Name", ($global:htmlsb),
+				"Server Name", ($global:htmlsb),
+				"Service Name", ($global:htmlsb),
+				"Failure Action 1", ($global:htmlsb),
+				"Failure Action 2", ($global:htmlsb),
+				"Failure Action 3",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -10856,7 +11085,7 @@ Function OutputAppendixG
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"vDisk Name",($htmlsilver -bor $htmlbold))
+				"vDisk Name",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -10966,7 +11195,7 @@ Function OutputAppendixH
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Device Collection Name",($htmlsilver -bor $htmlbold))
+				"Device Collection Name",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -11135,7 +11364,7 @@ Function OutputAppendixI
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"vDisk Name",($htmlsilver -bor $htmlbold))
+				"vDisk Name",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -11256,8 +11485,8 @@ Function OutputAppendixJ
 			If($HTML)
 			{
 				$columnHeaders = @(
-					"Server Name", ($htmlsilver -bor $htmlbold),
-					"Streaming IP Address",($htmlsilver -bor $htmlbold))
+					"Server Name", ($global:htmlsb),
+					"Streaming IP Address",($global:htmlsb))
 								
 				$msg = ""
 				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -11442,10 +11671,10 @@ Function OutputAppendixK
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Registry Key", ($htmlsilver -bor $htmlbold),
-				"Registry Value", ($htmlsilver -bor $htmlbold),
-				"Data", ($htmlsilver -bor $htmlbold),
-				"Server Name",($htmlsilver -bor $htmlbold))
+				"Registry Key", ($global:htmlsb),
+				"Registry Value", ($global:htmlsb),
+				"Data", ($global:htmlsb),
+				"Server Name",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -11569,9 +11798,9 @@ Function OutputAppendixL
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Store Name", ($htmlsilver -bor $htmlbold),
-				"Site Name", ($htmlsilver -bor $htmlbold),
-				"vDisk Name",($htmlsilver -bor $htmlbold))
+				"Store Name", ($global:htmlsb),
+				"Site Name", ($global:htmlsb),
+				"vDisk Name",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -11744,12 +11973,12 @@ Function OutputAppendixM
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Hotfix ID", ($htmlsilver -bor $htmlbold),
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Caption", ($htmlsilver -bor $htmlbold),
-				"Description", ($htmlsilver -bor $htmlbold),
-				"Installed By", ($htmlsilver -bor $htmlbold),
-				"Installed On Date",($htmlsilver -bor $htmlbold))
+				"Hotfix ID", ($global:htmlsb),
+				"Server Name", ($global:htmlsb),
+				"Caption", ($global:htmlsb),
+				"Description", ($global:htmlsb),
+				"Installed By", ($global:htmlsb),
+				"Installed On Date",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -11933,10 +12162,10 @@ Function OutputAppendixN
 			If($HTML)
 			{
 				$columnHeaders = @(
-					"Display Name", ($htmlsilver -bor $htmlbold),
-					"Name", ($htmlsilver -bor $htmlbold),
-					"Server Name", ($htmlsilver -bor $htmlbold),
-					"Feature Type",($htmlsilver -bor $htmlbold))
+					"Display Name", ($global:htmlsb),
+					"Name", ($global:htmlsb),
+					"Server Name", ($global:htmlsb),
+					"Feature Type",($global:htmlsb))
 								
 				$msg = ""
 				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -12091,9 +12320,9 @@ Function OutputAppendixO
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Process Name", ($htmlsilver -bor $htmlbold),
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Status",($htmlsilver -bor $htmlbold))
+				"Process Name", ($global:htmlsb),
+				"Server Name", ($global:htmlsb),
+				"Status",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -12205,7 +12434,7 @@ Function OutputAppendixP
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Item",($htmlsilver -bor $htmlbold))
+				"Item",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
@@ -12355,12 +12584,12 @@ Function OutputAppendixQ
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Operating System", ($htmlsilver -bor $htmlbold),
-				"Power Plan", ($htmlsilver -bor $htmlbold),
-				"RAM (GB)", ($htmlsilver -bor $htmlbold),
-				"Physical Procs", ($htmlsilver -bor $htmlbold),
-				"Logical Procs",($htmlsilver -bor $htmlbold))
+				"Server Name", ($global:htmlsb),
+				"Operating System", ($global:htmlsb),
+				"Power Plan", ($global:htmlsb),
+				"RAM (GB)", ($global:htmlsb),
+				"Physical Procs", ($global:htmlsb),
+				"Logical Procs",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -12462,9 +12691,9 @@ Function OutputAppendixQ
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Caption", ($htmlsilver -bor $htmlbold),
-				"Size (GB)",($htmlsilver -bor $htmlbold))
+				"Server Name", ($global:htmlsb),
+				"Caption", ($global:htmlsb),
+				"Size (GB)",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -12566,9 +12795,9 @@ Function OutputAppendixQ
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"Cores", ($htmlsilver -bor $htmlbold),
-				"Logical Procs",($htmlsilver -bor $htmlbold))
+				"Server Name", ($global:htmlsb),
+				"Cores", ($global:htmlsb),
+				"Logical Procs",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -12678,11 +12907,11 @@ Function OutputAppendixQ
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Server Name", ($htmlsilver -bor $htmlbold),
-				"NIC Name", ($htmlsilver -bor $htmlbold),
-				"Manufacturer", ($htmlsilver -bor $htmlbold),
-				"Power Mgmt", ($htmlsilver -bor $htmlbold),
-				"RSS",($htmlsilver -bor $htmlbold))
+				"Server Name", ($global:htmlsb),
+				"NIC Name", ($global:htmlsb),
+				"Manufacturer", ($global:htmlsb),
+				"Power Mgmt", ($global:htmlsb),
+				"RSS",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
@@ -12844,9 +13073,9 @@ Function OutputAppendixR
 		If($HTML)
 		{
 			$columnHeaders = @(
-				"Display Name", ($htmlsilver -bor $htmlbold),
-				"Display Version", ($htmlsilver -bor $htmlbold),
-				"PVS Server Name",($htmlsilver -bor $htmlbold))
+				"Display Name", ($global:htmlsb),
+				"Display Version", ($global:htmlsb),
+				"PVS Server Name",($global:htmlsb))
 							
 			$msg = ""
 			FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"

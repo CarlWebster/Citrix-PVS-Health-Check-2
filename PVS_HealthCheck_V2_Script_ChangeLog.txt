@@ -67,10 +67,16 @@
 #		I was not comparing to the specific device collection name, which returned all administrators and 
 #		operators for all device collections and not the device collection being processed 
 #	Format the Farm, Properties, Status section to match the console output
+#	In Function DeviceStatus, change the output of the Target device's active/inactive status and license type
+#	In Function GetBootstrapInfo, for HTML output, check if any array items exist before outputting a blank table with only column headings
 #	In Function GetConfigWizardInfo, fix $PXEServices to work with PVS7+
 #		If DHCPType is equal to 1073741824, then if PXE is set to PVS,
 #		in PVS V6, PXEType is set to 0, but in PVS7, PXEType is set to 1
 #		Updated the function to check for both 0 and 1 values
+#	In Function GetDisableTaskOffloadInfo, changed the value of $TaskOffloadValue:
+#		If the registry value DisableTaskOffload does not exist, from "Missing" to "Not defined"
+#		To a String[] so the HTML output works
+#	In Function ProcessStores, change the Word/PDF and HTML output to tables instead of individual lines
 #	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
 #	Updated the following functions to the latest versions:
 #		AbortScript
