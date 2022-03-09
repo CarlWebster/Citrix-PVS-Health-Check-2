@@ -400,9 +400,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.30
+	VERSION: 2 0.40
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 8, 2022
+	LASTEDIT: March 9, 2022
 #>
 
 
@@ -669,9 +669,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2 0.30'
+$script:MyVersion         = 'V2 0.40'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/08/2022"
+$tmpdate                  = [datetime] "03/09/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -8292,14 +8292,14 @@ Function GetPVSServiceInfo
 		ForEach($Service in $Services)
 		{
 			$obj1 = [PSCustomObject] @{
-				ServerName 	   = $ComputerName
-				DisplayName	   = $Service.DisplayName
+				ServerName     = $ComputerName
+				DisplayName    = $Service.DisplayName
 				ServiceName    = $Service.Name
-				Status 		   = $Service.Status
-				StartMode  	   = $Service.StartMode
-				Started		   = $Service.Started
-				StartName  	   = $Service.StartName
-				State  		   = $Service.State
+				Status         = $Service.Status
+				StartMode      = $Service.StartMode
+				Started        = $Service.Started.ToString()
+				StartName      = $Service.StartName
+				State          = $Service.State
 				FailureAction1 = "Take no Action"
 				FailureAction2 = "Take no Action"
 				FailureAction3 = "Take no Action"
@@ -9086,17 +9086,17 @@ Function ProcessvDisksinFarm
 			}
 			If($Text)
 			{
-				Line 2 "Auto Update"
-				Line 3 "Enable automatic updates for the vDisk: " $autoUpdateEnabled
+				Line 4 "Auto Update"
+				Line 5 "Enable automatic updates for the vDisk: " $autoUpdateEnabled
 				If($Disk.autoUpdateEnabled -eq "1")
 				{
 					If($Disk.activationDateEnabled -eq "0")
 					{
-						Line 3 "Apply vDisk updates as soon as they are detected by the server"
+						Line 5 "Apply vDisk updates as soon as they are detected by the server"
 					}
 					Else
 					{
-						Line 3 "Schedule the next vDisk update to occur on`t: $($Disk.activeDate)"
+						Line 5 "Schedule the next vDisk update to occur on`t: $($Disk.activeDate)"
 					}
 				}
 				Line 0 ""
@@ -10370,25 +10370,25 @@ Function OutputAppendixC
 			{
 			$WordTableRowHash = @{ 
 			ServerName   = $Item.serverName;
-			DHCPServices = $Item.DHCPServicesValue;
-			PXEService   = $Item.PXEServicesValue;
-			TFTPOption   = $Item.TFTPOptionValue
+			DHCPServices = $Item.DHCPServicesValue.ToString();
+			PXEService   = $Item.PXEServicesValue.ToString();
+			TFTPOption   = $Item.TFTPOptionValue.ToString();
 			UserAccount  = $Item.UserAccount;}
 			$ItemsWordTable += $WordTableRowHash;
 			}
 			If($Text)
 			{
 				Line 1 ( "{0,-16} {1,-11} {2,-9} {3,-7} {4,-50}" -f `
-				$Item.serverName, $Item.DHCPServicesValue, $Item.PXEServicesValue, $Item.TFTPOptionValue, `
+				$Item.serverName, $Item.DHCPServicesValue.ToString(), $Item.PXEServicesValue.ToString(), $Item.TFTPOptionValue.ToString(), `
 				$Item.UserAccount )
 			}
 			If($HTML)
 			{
 			$rowdata += @(,(
 			$Item.serverName,$htmlwhite,
-			$Item.DHCPServicesValue,$htmlwhite,
-			$Item.PXEServicesValue,$htmlwhite,
-			$Item.TFTPOptionValue,$htmlwhite,
+			$Item.DHCPServicesValue.ToString(),$htmlwhite,
+			$Item.PXEServicesValue.ToString(),$htmlwhite,
+			$Item.TFTPOptionValue.ToString(),$htmlwhite,
 			$Item.UserAccount,$htmlwhite))
 			}
 		}
@@ -11489,7 +11489,7 @@ Function OutputAppendixJ
 					"Streaming IP Address",($global:htmlsb))
 								
 				$msg = ""
-				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders -tablewidth "600"
+				FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
 				WriteHTMLLine 0 0 " "
 			}
 		}
@@ -11817,7 +11817,6 @@ Function OutputAppendixL
 		}
 		If($Text)
 		{
-			Line 0 ""
 			Line 1 "***No vDisks Configured for Server Side-Caching were found***"
 			Line 0 ""
 		}
