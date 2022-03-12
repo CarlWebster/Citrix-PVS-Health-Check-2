@@ -7,7 +7,8 @@
 	Creates a basic health check of a Citrix PVS 6.x or later farm in plain text, 
 	HTML, Word, or PDF.
 
-	This script was tested with PVS 6.1 and 2112.
+	This script was tested with PVS 6.1 running on Windows Server 2008 R2 and PVS 2112 running 
+	on Windows Server 2022.
 
 	Creates a document named after the PVS farm.
 
@@ -20,8 +21,6 @@
 
 	This script is written using the old string-based crappy PowerShell because it 
 	supports PVS 6.x.
-
-	For the email stuff to work, this script requires at least PowerShell V3.
 
 .PARAMETER AdminAddress
 	Specifies the name of a PVS server that the PowerShell script connects to. 
@@ -155,7 +154,7 @@
 
 	This parameter is disabled by default.
 .PARAMETER CompanyAddress
-	Company Address to use for the Cover Page, if the Cover Page has the Address field.
+	Company Address to use for the Cover page if the Cover Page has the Address field.
 	
 	The following Cover Pages have an Address field:
 		Banded (Word 2013/2016)
@@ -171,7 +170,7 @@
 	This parameter is only valid with the MSWORD and PDF output parameters.
 	This parameter has an alias of CA.
 .PARAMETER CompanyEmail
-	Company Email to use for the Cover Page, if the Cover Page has the Email field.  
+	Company Email to use for the Cover page if the Cover Page has the Email field. 
 	
 	The following Cover Pages have an Email field:
 		Facet (Word 2013/2016)
@@ -179,7 +178,7 @@
 	This parameter is only valid with the MSWORD and PDF output parameters.
 	This parameter has an alias of CE.
 .PARAMETER CompanyFax
-	Company Fax to use for the Cover Page, if the Cover Page has the Fax field.  
+	Company Fax to use for the Cover page if the Cover Page has the Fax field. 
 	
 	The following Cover Pages have a Fax field:
 		Contrast (Word 2010)
@@ -188,7 +187,7 @@
 	This parameter is only valid with the MSWORD and PDF output parameters.
 	This parameter has an alias of CF.
 .PARAMETER CompanyPhone
-	Company Phone to use for the Cover Page if the Cover Page has the Phone field.  
+	Company Phone to use for the Cover Page if the Cover Page has the Phone field. 
 	
 	The following Cover Pages have a Phone field:
 		Contrast (Word 2010)
@@ -266,10 +265,50 @@
 .EXAMPLE
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1
 	
+	Creates an HTML report.
+	
 	Uses all Default values.
-	LocalHost for AdminAddress.
+	localhost for AdminAddress.
 .EXAMPLE
-	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -AdminAddress PVS1 -User cwebster -Domain WebstersLab
+	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -MSWord
+	
+	Creates a Microsoft Word report.
+	
+	Uses all Default values.
+	HKEY_CURRENT_USER\Software\Microsoft\Office\Common\UserInfo\CompanyName="Carl 
+	Webster" or
+	HKEY_CURRENT_USER\Software\Microsoft\Office\Common\UserInfo\Company="Carl Webster"
+	$env:username = Administrator
+
+	Carl Webster for the Company Name.
+	Sideline for the Cover Page format.
+	Administrator for the Username.
+	localhost for AdminAddress.
+.EXAMPLE
+	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -PDF
+	
+	Creates an Adobe PDF report.
+	
+	Uses all Default values.
+	HKEY_CURRENT_USER\Software\Microsoft\Office\Common\UserInfo\CompanyName="Carl 
+	Webster" or
+	HKEY_CURRENT_USER\Software\Microsoft\Office\Common\UserInfo\Company="Carl Webster"
+	$env:username = Administrator
+
+	Carl Webster for the Company Name.
+	Sideline for the Cover Page format.
+	Administrator for the Username.
+	localhost for AdminAddress.
+.EXAMPLE
+	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -Text
+	
+	Creates a plain text report.
+	
+	Uses all Default values.
+	localhost for AdminAddress.
+.EXAMPLE
+	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -AdminAddress PVS1 -User cwebster -Domain 
+	WebstersLab
 
 	Use this example to run the script against a PVS Farm in another domain or forest.
 	
@@ -289,18 +328,47 @@
 
 	Uses Get-Credential to prompt for the password.
 .EXAMPLE
+	PS C:\PSScript .\PVS_HealthCheck_V2.ps1 -MSWord -CompanyName "Carl Webster 
+	Consulting" -CoverPage "Mod" -UserName "Carl Webster" -AdminAddress PVS01
+
+	Creates a Microsoft Word report.
+	
+	Will use:
+		Carl Webster Consulting for the Company Name.
+		Mod for the Cover Page format.
+		Carl Webster for the Username.
+
+	PVS server named PVS01 for the AdminAddress.
+.EXAMPLE
+	PS C:\PSScript .\PVS_HealthCheck_V2.ps1 -MSWord -CN "Carl Webster Consulting" 
+	-CP "Mod" -UN "Carl Webster" -AA PVS01
+
+	Creates a Microsoft Word report.
+	
+	Will use:
+		Carl Webster Consulting for the Company Name.
+		Mod for the Cover Page format.
+		Carl Webster for the Username.
+
+	PVS server named PVS01 for the AdminAddress.
+.EXAMPLE
+	PS C:\PSScript .\PVS_HealthCheck_V2.ps1 -MSWord -CompanyName "Sherlock Holmes 
+    Consulting" -CoverPage Exposure -UserName "Dr. Watson" -CompanyAddress "221B Baker 
+    Street, London, England" -CompanyFax "+44 1753 276600" -CompanyPhone "+44 1753 276200
+	
+	Creates a Microsoft Word report.
+	
+	Will use:
+		Sherlock Holmes Consulting for the Company Name.
+		Exposure for the Cover Page format.
+		Dr. Watson for the Username.
+		221B Baker Street, London, England for the Company Address.
+		+44 1753 276600 for the Company Fax.
+		+44 1753 276200 for the Company Phone.
+.EXAMPLE
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -Folder \\FileServer\ShareName
 	
 	Output file will be saved in the path \\FileServer\ShareName
-.EXAMPLE
-	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -SmtpServer mail.domain.tld -From 
-	XDAdmin@domain.tld -To ITGroup@domain.tld -ComputerName DHCPServer01
-	
-	Script uses the email server mail.domain.tld, sending from XDAdmin@domain.tld and 
-	sending to ITGroup@domain.tld.
-	
-	If the current user's credentials are not valid to send an email, the script prompts 
-	the user to enter valid credentials.
 .EXAMPLE
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -Dev -ScriptInfo -Log
 	
@@ -316,13 +384,13 @@
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -CSV
 	
 	Uses all Default values.
-	LocalHost for AdminAddress.
+	localhost for AdminAddress.
 	Creates a CSV file for each Appendix.
 .EXAMPLE
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -SmtpServer mail.domain.tld -From 
-	XDAdmin@domain.tld -To ITGroup@domain.tld	
+	ADAdmin@domain.tld -To ITGroup@domain.tld	
 
-	The script uses the email server mail.domain.tld, sending from XDAdmin@domain.tld 
+	The script uses the email server mail.domain.tld, sending from ADAdmin@domain.tld 
 	and sending to ITGroup@domain.tld.
 
 	The script uses the default SMTP port 25 and does not use SSL.
@@ -330,7 +398,7 @@
 	If the current user's credentials are not valid to send an email, the script prompts 
 	the user to enter valid credentials.
 .EXAMPLE
-	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -SmtpServer mailrelay.domain.tld -From 
+	PS C:\PSScript > .\PVS_HealthCheck_v2.ps1 -SmtpServer mailrelay.domain.tld -From 
 	Anonymous@domain.tld -To ITGroup@domain.tld	
 
 	***SENDING UNAUTHENTICATED EMAIL***
@@ -354,16 +422,16 @@
 	The script generates an anonymous, secure password for the anonymous@domain.tld 
 	account.
 .EXAMPLE
-	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -SmtpServer 
+	PS C:\PSScript > .\PVS_HealthCheck_v2.ps1 -SmtpServer 
 	labaddomain-com.mail.protection.outlook.com -UseSSL -From 
 	SomeEmailAddress@labaddomain.com -To ITGroupDL@labaddomain.com	
 
 	***OFFICE 365 Example***
 
-	https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-office-3
-
+	https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multiFunction-device-or-application-to-send-email-using-office-3
+	
 	This uses Option 2 from the above link.
-
+	
 	***OFFICE 365 Example***
 
 	The script uses the email server labaddomain-com.mail.protection.outlook.com, sending 
@@ -371,16 +439,16 @@
 
 	The script uses the default SMTP port 25 and SSL.
 .EXAMPLE
-	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -SmtpServer smtp.office365.com -SmtpPort 587
+	PS C:\PSScript > .\PVS_HealthCheck_v2.ps1 -SmtpServer smtp.office365.com -SmtpPort 587 
 	-UseSSL -From Webster@CarlWebster.com -To ITGroup@CarlWebster.com	
 
 	The script uses the email server smtp.office365.com on port 587 using SSL, sending from 
 	webster@carlwebster.com and sending to ITGroup@carlwebster.com.
 
-    If the current user's credentials are not valid to send an email, the script prompts 
-    the user to enter valid credentials.
+	If the current user's credentials are not valid to send an email, the script prompts 
+	the user to enter valid credentials.
 .EXAMPLE
-	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -SmtpServer smtp.gmail.com -SmtpPort 587 
+	PS C:\PSScript > .\PVS_HealthCheck_v2.ps1 -SmtpServer smtp.gmail.com -SmtpPort 587 
 	-UseSSL -From Webster@CarlWebster.com -To ITGroup@CarlWebster.com	
 
 	*** NOTE ***
@@ -391,18 +459,18 @@
 	The script uses the email server smtp.gmail.com on port 587 using SSL, sending from 
 	webster@gmail.com and sending to ITGroup@carlwebster.com.
 
-    If the current user's credentials are not valid to send an email, the script prompts 
-    the user to enter valid credentials.
+	If the current user's credentials are not valid to send an email, the script prompts 
+	the user to enter valid credentials.
 .INPUTS
-	None.  You cannot pipe objects to this script.
+	None. You cannot pipe objects to this script.
 .OUTPUTS
-	No objects are output from this script.  This script creates a text file and optional 
+	No objects are output from this script. This script creates a text file and optional 
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2 0.40
+	VERSION: 2.00
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 9, 2022
+	LASTEDIT: March 12, 2022
 #>
 
 
@@ -517,7 +585,7 @@ Param(
 #released to the community on 
 #V2.00 is based on 1.24
 #
-#Version 2.00
+#Version 2.00 14-Mar-2022
 #	Added MultiSubnetFailover to Farm Status section
 #		Thanks to Arnaud Pain
 #		I can't believe no one has asked for this since PVS 7.11 was released on 14-Sep-2016
@@ -573,9 +641,15 @@ Param(
 #	Dropped support for PVS 5. The V1.24 script still supports PVS 5.x
 #	Fixed a bug in Function GetInstalledRolesAndFeatures that didn't handle the condition of no installed Roles or Features
 #		Thanks to Arnaud Pain for reporting this
-#	Fixed bug when retrieving a Device Collection's Administrators and Operators
+#	Fixed a bug when retrieving a Device Collection's Administrators and Operators
 #		I was not comparing to the specific device collection name, which returned all administrators and 
 #		operators for all device collections and not the device collection being processed 
+#	Fixed a bug with handling a PVS server with multiple NICs and multiple IPv4 addresses
+#		This bug has existed since I created the script in 2012
+#		I changed the $Script:NICIPAddresses array from @{} to New-Object System.Collections.ArrayList
+#		Updated Function ProcessPVSSite to use Get-NetIPAddress -CimSession to get all the IPv4 addresses
+#		This allows the gathering of IPv4 addresses regardless of the OS or PVS version
+#		Updated Function GetBadStreamingIPAddresses to work with the new array type for $Script:NICIPAddresses
 #	Format the Farm, Properties, Status section to match the console output
 #	In Function DeviceStatus, change the output of the Target device's active/inactive status and license type
 #	In Function GetBootstrapInfo, for HTML output, check if any array items exist before outputting a blank table with only column headings
@@ -587,6 +661,7 @@ Param(
 #		If the registry value DisableTaskOffload does not exist, from "Missing" to "Not defined"
 #		To a String[] so the HTML output works
 #	In Function ProcessStores, change the Word/PDF and HTML output to tables instead of individual lines
+#	Replaced all Get-WmiObject with Get-CimInstance
 #	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
 #	Updated the following functions to the latest versions:
 #		AbortScript
@@ -669,9 +744,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2 0.40'
+$script:MyVersion         = 'V2.00'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/09/2022"
+$tmpdate                  = [datetime] "03/12/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -888,8 +963,6 @@ If($Dev)
 	$Script:DevErrorFile = "$Script:pwdpath\PVSHealthCheckScriptErrors_$(Get-Date -f FileDateTime).txt"
 }
 
-[string]$Script:RunningOS = (Get-WmiObject -class Win32_OperatingSystem -EA 0).Caption
-
 $Script:ItemsToReview                = New-Object System.Collections.ArrayList
 $Script:ServerComputerItemsToReview  = New-Object System.Collections.ArrayList
 $Script:ServerDriveItemsToReview     = New-Object System.Collections.ArrayList
@@ -902,7 +975,7 @@ $Script:BootstrapItems               = New-Object System.Collections.ArrayList
 $Script:TaskOffloadItems             = New-Object System.Collections.ArrayList
 $Script:PVSServiceItems              = New-Object System.Collections.ArrayList
 $Script:VersionsToMerge              = New-Object System.Collections.ArrayList
-$Script:NICIPAddresses               = @{}
+$Script:NICIPAddresses               = New-Object System.Collections.ArrayList
 $Script:StreamingIPAddresses         = New-Object System.Collections.ArrayList
 $Script:BadIPs                       = New-Object System.Collections.ArrayList
 $Script:EmptyDeviceCollections       = New-Object System.Collections.ArrayList
@@ -915,8 +988,8 @@ $Script:CtxInstalledComponents       = New-Object System.Collections.ArrayList
 $script:startTime                    = Get-Date
 
 #region initialize variables for word html and text
-[string]$Script:RunningOS = (Get-WmiObject -class Win32_OperatingSystem -EA 0).Caption
-$Script:CoName = $CompanyName #3.05 move so this is available for HTML and Text output also
+[string]$Script:RunningOS = (Get-CIMInstance -ClassName Win32_OperatingSystem -EA 0 -Verbose:$False).Caption
+$Script:CoName = $CompanyName #move so this is available for HTML and Text output also
 
 If($MSWord -or $PDF)
 {
@@ -985,7 +1058,7 @@ If($MSWord -or $PDF)
 
 If($HTML)
 {
-	#V3.00 Prior versions used Set-Variable. That hid the variables
+	#Prior versions used Set-Variable. That hid the variables
 	#from @code. So MBS Switched to using $global:
 
     $global:htmlredmask       = "#FF0000" 4>$Null
@@ -1008,8 +1081,8 @@ If($HTML)
 
     $global:htmlbold        = 1 4>$Null
     $global:htmlitalics     = 2 4>$Null
-	$global:htmlAlignLeft   = 4 4>$Null	#3.06 added by MBS
-	$global:htmlAlignRight  = 8 4>$Null	#3.06 added by MBS
+	$global:htmlAlignLeft   = 4 4>$Null
+	$global:htmlAlignRight  = 8 4>$Null
     $global:htmlred         = 16 4>$Null
     $global:htmlcyan        = 32 4>$Null
     $global:htmlblue        = 64 4>$Null
@@ -2179,7 +2252,7 @@ Function Get-RegistryValue
 		[String] $ComputerName
 	)
 
-	If($ComputerName -eq $env:computername -or $ComputerName -eq "LocalHost")
+	If($ComputerName -eq $env:computername -or $ComputerName -eq "localhost")
 	{
 		$key = Get-Item -LiteralPath $path -EA 0
 		If($key)
@@ -2249,19 +2322,19 @@ Function line
 
 	while( $tabs -gt 0 )
 	{
-		#V3.00 - Switch to using a StringBuilder for $global:Output
+		#Switch to using a StringBuilder for $global:Output
 		$null = $global:Output.Append( "`t" )
 		$tabs--
 	}
 
 	If( $nonewline )
 	{
-		#V3.00 - Switch to using a StringBuilder for $global:Output
+		#Switch to using a StringBuilder for $global:Output
 		$null = $global:Output.Append( $name + $value )
 	}
 	Else
 	{
-		#V3.00 - Switch to using a StringBuilder for $global:Output
+		#Switch to using a StringBuilder for $global:Output
 		$null = $global:Output.AppendLine( $name + $value )
 	}
 }
@@ -2391,7 +2464,7 @@ Function WriteWordLine
 
 .NOTES
 
-	Font Size - Unlike word, there is a limited set of font sizes that can be used in HTML.  They are:
+	Font Size - Unlike word, there is a limited set of font sizes that can be used in HTML. They are:
 		0 - default which actually gives it a 2 or 10 point.
 		1 - 7.5 point font size
 		2 - 10 point
@@ -2403,7 +2476,7 @@ Function WriteWordLine
 	Any number larger than 7 defaults to 7
 
 	Style - Refers to the headers that are used with output and resemble the headers in word, 
-	HTML supports headers h1-h6 and h1-h4 are more commonly used.  Unlike word, H1 will not 
+	HTML supports headers h1-h6 and h1-h4 are more commonly used. Unlike word, H1 will not 
 	give you a blue colored font, you will have to set that yourself.
 
 	Colors and Bold/Italics Flags are:
@@ -2436,7 +2509,7 @@ Function WriteHTMLLine
 #Function created to make output to HTML easy in this script
 #headings fixed 12-Oct-2016 by Webster
 #errors with $HTMLStyle fixed 7-Dec-2017 by Webster
-# re-implemented/re-based for v3.00 by Michael B. Smith
+# re-implemented/re-based by Michael B. Smith
 {
 	Param
 	(
@@ -2518,7 +2591,7 @@ Function WriteHTMLLine
 # AddHTMLTable - Called from FormatHTMLTable Function
 # Created by Ken Avram
 # modified by Jake Rutski
-# re-implemented by Michael B. Smith for v3.00. Also made the documentation match reality.
+# re-implemented by Michael B. Smith. Also made the documentation match reality.
 #***********************************************************************************************************
 Function AddHTMLTable
 {
@@ -2625,7 +2698,7 @@ Function AddHTMLTable
 # FormatHTMLTable 
 # Created by Ken Avram
 # modified by Jake Rutski
-# reworked by Michael B. Smith for v3.00
+# reworked by Michael B. Smith
 #***********************************************************************************************************
 
 <#
@@ -2692,11 +2765,11 @@ Function AddHTMLTable
 .EXAMPLE
 	FormatHTMLTable "Table Heading" "auto" "Calibri" 3
 
-	This example formats a table and writes it out into an html file.  All of the parameters are optional
+	This example formats a table and writes it out into an html file. All of the parameters are optional
 	defaults are used if not supplied.
 
-	for <Table format>, the default is auto which will autofit the text into the columns and adjust to the longest text in that column.  You can also use percentage i.e. 25%
-	which will take only 25% of the line and will auto word wrap the text to the next line in the column.  Also, instead of using a percentage, you can use pixels i.e. 400px.
+	for <Table format>, the default is auto which will autofit the text into the columns and adjust to the longest text in that column. You can also use percentage i.e. 25%
+	which will take only 25% of the line and will auto word wrap the text to the next line in the column. Also, instead of using a percentage, you can use pixels i.e. 400px.
 
 	FormatHTMLTable "Table Heading" "auto" -rowArray $rowData -columnArray $columnData
 
@@ -2711,21 +2784,21 @@ Function AddHTMLTable
 	This example creates an HTML table with a heading of 'Table Heading, no header, row data from $rowData, and fixed columns defined by $fixedColumns
 
 .NOTES
-	In order to use the formatted table it first has to be loaded with data.  Examples below will show how to load the table:
+	In order to use the formatted table it first has to be loaded with data. Examples below will show how to load the table:
 
 	First, initialize the table array
 
 	$rowdata = @()
 
-	Then Load the array.  If you are using column headers then load those into the column headers array, otherwise the first line of the table goes into the column headers array
+	Then Load the array. If you are using column headers then load those into the column headers array, otherwise the first line of the table goes into the column headers array
 	and the second and subsequent lines go into the $rowdata table as shown below:
 
 	$columnHeaders = @('Display Name',$htmlsb,'Status',$htmlsb,'Startup Type',$htmlsb)
 
-	The first column is the actual name to display, the second are the attributes of the column i.e. color anded with bold or italics.  For the anding, parens are required or it will
+	The first column is the actual name to display, the second are the attributes of the column i.e. color anded with bold or italics. For the anding, parens are required or it will
 	not format correctly.
 
-	This is following by adding rowdata as shown below.  As more columns are added the columns will auto adjust to fit the size of the page.
+	This is following by adding rowdata as shown below. As more columns are added the columns will auto adjust to fit the size of the page.
 
 	$rowdata = @()
 	$columnHeaders = @("User Name",$htmlsb,$UserName,$htmlwhite)
@@ -2825,7 +2898,6 @@ Function FormatHTMLTable
 
 		for( $columnIndex = 0; $columnIndex -lt $NumCols; $columnindex += 2 )
 		{
-			#V3.00
 			$val = $columnArray[ $columnIndex + 1 ]
 			$tmp = $global:htmlColor[ $val -band 0xfffff0 ]
 			[Bool] $bold  = $val -band $htmlBold
@@ -2893,7 +2965,6 @@ Function FormatHTMLTable
 		$HTMLBody += '</tr>' + $crlf
 	}
 
-	#V3.00
 	Out-File -FilePath $Script:HTMLFileName -Append -InputObject $HTMLBody 4>$Null 
 	$HTMLBody = ''
 
@@ -3810,7 +3881,7 @@ Function ShowScriptOptions
 	Write-Verbose "$(Get-Date -Format G): User                : $User"
 	If($MSWORD -or $PDF)
 	{
-		Write-Verbose "$(Get-Date -Format G): User Name           : $UserName"
+		Write-Verbose "$(Get-Date -Format G): Username            : $UserName"
 	}
 	Write-Verbose "$(Get-Date -Format G): "
 	Write-Verbose "$(Get-Date -Format G): OS Detected         : $Script:RunningOS"
@@ -5428,9 +5499,23 @@ Function ProcessPVSSite
 							$null = $Script:StreamingIPAddresses.Add($obj1)
 						}
 
-						If($Script:PVSVersion -eq "7")
+						#get all the IPv4 addresses regardless of server OS or PVS version
+						If($Server.serverName -eq $env:computername)
 						{
-							$Script:NICIPAddresses.Add( $Server.serverName, $Server.managementIp )
+							$ServerIPs = @(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.ipaddress -ne "127.0.0.1"}).IPAddress
+						}
+						Else
+						{
+							$ServerIPs = @(Get-NetIPAddress -CimSession $Server.serverName -AddressFamily IPv4 | Where-Object {$_.ipaddress -ne "127.0.0.1"}).IPAddress
+						}
+							
+						ForEach($ServerIP in $ServerIPs)
+						{
+							$obj1 = [PSCustomObject] @{
+								serverName = $Server.serverName
+								serverIP   = $ServerIP
+							}
+							$null = $Script:NICIPAddresses.Add( $obj1 )
 						}
 
 						If($MSWord -or $PDF)
@@ -5643,15 +5728,15 @@ Function ProcessPVSSite
 					Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing General Tab"
 					If($MSWord -or $PDF)
 					{
-						WriteWordLine 3 0 "Name: " $Collection.collectionName
+						WriteWordLine 3 0 "Device Collection Name: " $Collection.collectionName
 					}
 					If($Text)
 					{
-						Line 2 "Name: " $Collection.collectionName
+						Line 2 "Device Collection Name: " $Collection.collectionName
 					}
 					If($HTML)
 					{
-						WriteHTMLLine 3 0 "Name: " $Collection.collectionName
+						WriteHTMLLine 3 0 "Device Collection Name: " $Collection.collectionName
 					}
 
 					Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing Security Tab"
@@ -5675,7 +5760,7 @@ Function ProcessPVSSite
 						}
 						If($HTML)
 						{
-							WriteHTMLLine 0 0 "Groups with 'Device Administrator' access:"
+							WriteHTMLLine 0 0 "Groups with 'Device Administrator' access"
 							$rowdata = @()
 						}
 
@@ -6266,8 +6351,6 @@ Function ProcessPVSSite
 			}
 		}
 	}
-
-	#Write-Verbose "$(Get-Date -Format G): "
 }
 
 Function VerifyPVSSOAPService
@@ -6286,7 +6369,7 @@ Function VerifyPVSSOAPService
 		If($soapserver.Status -ne "Running")
 		{
 			Write-Warning "The Citrix PVS Soap Server service is not Started on server $($PVSServer)"
-			Write-Warning "Server $($PVSServer) cannot be processed.  See message above."
+			Write-Warning "Server $($PVSServer) cannot be processed. See message above."
 			Return $False
 		}
 		Else
@@ -6296,8 +6379,8 @@ Function VerifyPVSSOAPService
 	}
 	Else
 	{
-		Write-Warning "The server $($PVSServer) is offLine or unreachable."
-		Write-Warning "Server $($PVSServer) cannot be processed.  See message above."
+		Write-Warning "The server $($PVSServer) is offline or unreachable."
+		Write-Warning "Server $($PVSServer) cannot be processed. See message above."
 		Return $False
 	}
 }
@@ -6315,6 +6398,7 @@ Function GetComputerWMIInfo
 	# modified 1-May-2014 to work in trusted AD Forests and using different domain admin credentials	
 	# modified 17-Aug-2016 to fix a few issues with Text and HTML output
 	# modified 29-Apr-2018 to change from Arrays to New-Object System.Collections.ArrayList
+	# modified 11-Mar-2022 changed from using Get-WmiObject to Get-CimInstance
 
 	#Get Computer info
 	Write-Verbose "$(Get-Date -Format G): `t`tProcessing WMI Computer information"
@@ -6337,7 +6421,14 @@ Function GetComputerWMIInfo
 	
 	Try
 	{
-		$Results = Get-WmiObject -computername $RemoteComputerName win32_computersystem
+		If($RemoteComputerName -eq $env:computername)
+		{
+			$Results = Get-CimInstance -ClassName win32_computersystem -Verbose:$False
+		}
+		Else
+		{
+			$Results = Get-CimInstance -computername $RemoteComputerName -ClassName win32_computersystem -Verbose:$False
+		}
 	}
 	
 	Catch
@@ -6351,7 +6442,14 @@ Function GetComputerWMIInfo
 		@{N="TotalPhysicalRam"; E={[math]::round(($_.TotalPhysicalMemory / 1GB),0)}}, `
 		NumberOfProcessors, NumberOfLogicalProcessors
 		$Results = $Null
-		[string]$ComputerOS = (Get-WmiObject -class Win32_OperatingSystem -computername $RemoteComputerName -EA 0).Caption
+		If($RemoteComputerName -eq $env:computername)
+		{
+			[string]$ComputerOS = (Get-CimInstance -ClassName Win32_OperatingSystem -EA 0 -Verbose:$False).Caption
+		}
+		Else
+		{
+			[string]$ComputerOS = (Get-CimInstance -ClassName Win32_OperatingSystem -CimSession $RemoteComputerName -EA 0 -Verbose:$False).Caption
+		}
 
 		ForEach($Item in $ComputerItems)
 		{
@@ -6360,29 +6458,20 @@ Function GetComputerWMIInfo
 	}
 	ElseIf(!$?)
 	{
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
+		Write-Verbose "$(Get-Date -Format G): Get-CimInstance win32_computersystem failed for $($RemoteComputerName)"
+		Write-Warning "Get-CimInstance win32_computersystem failed for $($RemoteComputerName)"
 		If($MSWORD -or $PDF)
 		{
-			WriteWordLine 0 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+			WriteWordLine 0 2 "Get-CimInstance win32_computersystem failed for $($RemoteComputerName)" "" $Null 0 $False $True
 		}
 		If($Text)
 		{
-			Line 5 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)"
-			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+			Line 5 "Get-CimInstance win32_computersystem failed for $($RemoteComputerName)"
 			Line 5 ""
 		}
 		If($HTML)
 		{
-			WriteHTMLLine 0 2 "Get-WmiObject win32_computersystem failed for $($RemoteComputerName)" -option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+			WriteHTMLLine 0 2 "Get-CimInstance win32_computersystem failed for $($RemoteComputerName)" -option $htmlBold
 		}
 	}
 	Else
@@ -6420,7 +6509,14 @@ Function GetComputerWMIInfo
 
 	Try
 	{
-		$Results = Get-WmiObject -computername $RemoteComputerName Win32_LogicalDisk
+		If($RemoteComputerName -eq $env:computername)
+		{
+			$Results = Get-CimInstance -ClassName Win32_LogicalDisk -Verbose:$False
+		}
+		Else
+		{
+			$Results = Get-CimInstance -CimSession $RemoteComputerName -ClassName Win32_LogicalDisk -Verbose:$False
+		}
 	}
 	
 	Catch
@@ -6444,28 +6540,19 @@ Function GetComputerWMIInfo
 	}
 	ElseIf(!$?)
 	{
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
+		Write-Verbose "$(Get-Date -Format G): Get-CimInstance Win32_LogicalDisk failed for $($RemoteComputerName)"
+		Write-Warning "Get-CimInstance Win32_LogicalDisk failed for $($RemoteComputerName)"
 		If($MSWORD -or $PDF)
 		{
-			WriteWordLine 0 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+			WriteWordLine 0 2 "Get-CimInstance Win32_LogicalDisk failed for $($RemoteComputerName)" "" $Null 0 $False $True
 		}
 		If($Text)
 		{
-			Line 5 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)"
-			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+			Line 5 "Get-CimInstance Win32_LogicalDisk failed for $($RemoteComputerName)"
 		}
 		If($HTML)
 		{
-			WriteHTMLLine 0 2 "Get-WmiObject Win32_LogicalDisk failed for $($RemoteComputerName)" -Option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+			WriteHTMLLine 0 2 "Get-CimInstance Win32_LogicalDisk failed for $($RemoteComputerName)" -Option $htmlBold
 		}
 	}
 	Else
@@ -6503,7 +6590,14 @@ Function GetComputerWMIInfo
 
 	Try
 	{
-		$Results = Get-WmiObject -computername $RemoteComputerName win32_Processor
+		If($RemoteComputerName -eq $env:computername)
+		{
+			$Results = Get-CimInstance -ClassName win32_Processor -Verbose:$False
+		}
+		Else
+		{
+			$Results = Get-CimInstance -computername $RemoteComputerName -ClassName win32_Processor -Verbose:$False
+		}
 	}
 	
 	Catch
@@ -6523,28 +6617,19 @@ Function GetComputerWMIInfo
 	}
 	ElseIf(!$?)
 	{
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
+		Write-Verbose "$(Get-Date -Format G): Get-CimInstance win32_Processor failed for $($RemoteComputerName)"
+		Write-Warning "Get-CimInstance win32_Processor failed for $($RemoteComputerName)"
 		If($MSWORD -or $PDF)
 		{
-			WriteWordLine 0 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
+			WriteWordLine 0 2 "Get-CimInstance win32_Processor failed for $($RemoteComputerName)" "" $Null 0 $False $True
 		}
 		If($Text)
 		{
-			Line 5 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)"
-			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
+			Line 5 "Get-CimInstance win32_Processor failed for $($RemoteComputerName)"
 		}
 		If($HTML)
 		{
-			WriteHTMLLine 0 2 "Get-WmiObject win32_Processor failed for $($RemoteComputerName)" -Option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
+			WriteHTMLLine 0 2 "Get-CimInstance win32_Processor failed for $($RemoteComputerName)" -Option $htmlBold
 		}
 	}
 	Else
@@ -6584,7 +6669,14 @@ Function GetComputerWMIInfo
 	
 	Try
 	{
-		$Results = Get-WmiObject -computername $RemoteComputerName win32_networkadapterconfiguration
+		If($RemoteComputerName -eq $env:computername)
+		{
+			$Results = Get-CimInstance -ClassName win32_networkadapterconfiguration -Verbose:$False
+		}
+		Else
+		{
+			$Results = Get-CimInstance -computername $RemoteComputerName -ClassName win32_networkadapterconfiguration -Verbose:$False
+		}
 	}
 	
 	Catch
@@ -6612,7 +6704,14 @@ Function GetComputerWMIInfo
 			{
 				Try
 				{
-					$ThisNic = Get-WmiObject -computername $RemoteComputerName win32_networkadapter | Where-Object {$_.index -eq $nic.index}
+					If($RemoteComputerName -eq $env:computername)
+					{
+						$ThisNic = Get-CimInstance -ClassName win32_networkadapter -Verbose:$False | Where-Object {$_.index -eq $nic.index}
+					}
+					Else
+					{
+						$ThisNic = Get-CimInstance -computername $RemoteComputerName -ClassName win32_networkadapter -Verbose:$False | Where-Object {$_.index -eq $nic.index}
+					}
 				}
 				
 				Catch 
@@ -6627,31 +6726,19 @@ Function GetComputerWMIInfo
 				ElseIf(!$?)
 				{
 					Write-Warning "$(Get-Date): Error retrieving NIC information"
-					Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-					Write-Warning "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+					Write-Verbose "$(Get-Date -Format G): Get-CimInstance win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+					Write-Warning "Get-CimInstance win32_networkadapterconfiguration failed for $($RemoteComputerName)"
 					If($MSWORD -or $PDF)
 					{
 						WriteWordLine 0 2 "Error retrieving NIC information" "" $Null 0 $False $True
-						WriteWordLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" "" $Null 0 $False $True
-						WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-						WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-						WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
 					}
 					If($Text)
 					{
 						Line 5 "Error retrieving NIC information"
-						Line 5 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-						Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-						Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-						Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
 					}
 					If($HTML)
 					{
 						WriteHTMLLine 0 2 "Error retrieving NIC information" -Option $htmlBold
-						WriteHTMLLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" -Option $htmlBold
-						WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-						WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-						WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
 					}
 				}
 				Else
@@ -6676,31 +6763,19 @@ Function GetComputerWMIInfo
 	ElseIf(!$?)
 	{
 		Write-Warning "$(Get-Date): Error retrieving NIC configuration information"
-		Write-Verbose "$(Get-Date -Format G): Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-		Write-Warning "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+		Write-Verbose "$(Get-Date -Format G): Get-CimInstance win32_networkadapterconfiguration failed for $($RemoteComputerName)"
+		Write-Warning "Get-CimInstance win32_networkadapterconfiguration failed for $($RemoteComputerName)"
 		If($MSWORD -or $PDF)
 		{
 			WriteWordLine 0 2 "Error retrieving NIC configuration information" "" $Null 0 $False $True
-			WriteWordLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" "" $Null 0 $False $True
-			WriteWordLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" "" $Null 0 $False $True
-			WriteWordLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" "" $Null 0 $False $True
-			WriteWordLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." "" $Null 0 $False $True
 		}
 		If($Text)
 		{
 			Line 5 "Error retrieving NIC configuration information"
-			Line 5 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)"
-			Line 5 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository"
-			Line 5 "and winmgmt /salvagerepository. If this is a trusted Forest, you may"
-			Line 5 "need to rerun the script with Domain Admin credentials from the trusted Forest."
 		}
 		If($HTML)
 		{
 			WriteHTMLLine 0 2 "Error retrieving NIC configuration information" -Option $htmlBold
-			WriteHTMLLine 0 2 "Get-WmiObject win32_networkadapterconfiguration failed for $($RemoteComputerName)" -Option $htmlBold
-			WriteHTMLLine 0 2 "On $($RemoteComputerName) you may need to run winmgmt /verifyrepository" -Option $htmlBold
-			WriteHTMLLine 0 2 "and winmgmt /salvagerepository. If this is a trusted Forest, you may" -Option $htmlBold
-			WriteHTMLLine 0 2 "need to rerun the script with Domain Admin credentials from the trusted Forest." -Option $htmlBold
 		}
 	}
 	Else
@@ -6744,9 +6819,18 @@ Function OutputComputerItem
 	try 
 	{
 
-		$PowerPlan = (Get-WmiObject -ComputerName $RemoteComputerName -Class Win32_PowerPlan -Namespace "root\cimv2\power" |
-			Where-Object {$_.IsActive -eq $true} |
-			Select-Object @{Name = "PowerPlan"; Expression = {$_.ElementName}}).PowerPlan
+		If($RemoteComputerName -eq $env:computername)
+		{
+			$PowerPlan = (Get-CimInstance -ClassName Win32_PowerPlan -Namespace "root\cimv2\power" -Verbose:$False |
+				Where-Object {$_.IsActive -eq $true} |
+				Select-Object @{Name = "PowerPlan"; Expression = {$_.ElementName}}).PowerPlan
+		}
+		Else
+		{
+			$PowerPlan = (Get-CimInstance -CimSession $RemoteComputerName -ClassName Win32_PowerPlan -Namespace "root\cimv2\power" -Verbose:$False |
+				Where-Object {$_.IsActive -eq $true} |
+				Select-Object @{Name = "PowerPlan"; Expression = {$_.ElementName}}).PowerPlan
+		}
 	}
 
 	catch 
@@ -6813,7 +6897,6 @@ Function OutputComputerItem
 		$msg = ""
 		$columnWidths = @("150px","200px")
 		FormatHTMLTable $msg -rowarray $rowdata -columnArray $columnheaders -fixedWidth $columnWidths -tablewidth "350"
-		#WriteHTMLLine 0 0 " "
 	}
 }
 
@@ -6824,13 +6907,13 @@ Function OutputDriveItem
 	$xDriveType = ""
 	Switch ($drive.drivetype)
 	{
-		0	{$xDriveType = "Unknown"; Break}
-		1	{$xDriveType = "No Root Directory"; Break}
-		2	{$xDriveType = "Removable Disk"; Break}
-		3	{$xDriveType = "Local Disk"; Break}
-		4	{$xDriveType = "Network Drive"; Break}
-		5	{$xDriveType = "Compact Disc"; Break}
-		6	{$xDriveType = "RAM Disk"; Break}
+		0		{$xDriveType = "Unknown"; Break}
+		1		{$xDriveType = "No Root Directory"; Break}
+		2		{$xDriveType = "Removable Disk"; Break}
+		3		{$xDriveType = "Local Disk"; Break}
+		4		{$xDriveType = "Network Drive"; Break}
+		5		{$xDriveType = "Compact Disc"; Break}
+		6		{$xDriveType = "RAM Disk"; Break}
 		Default {$xDriveType = "Unknown"; Break}
 	}
 	
@@ -6954,23 +7037,23 @@ Function OutputProcessorItem
 	$xAvailability = ""
 	Switch ($processor.availability)
 	{
-		1	{$xAvailability = "Other"; Break}
-		2	{$xAvailability = "Unknown"; Break}
-		3	{$xAvailability = "Running or Full Power"; Break}
-		4	{$xAvailability = "Warning"; Break}
-		5	{$xAvailability = "In Test"; Break}
-		6	{$xAvailability = "Not Applicable"; Break}
-		7	{$xAvailability = "Power Off"; Break}
-		8	{$xAvailability = "Off Line"; Break}
-		9	{$xAvailability = "Off Duty"; Break}
-		10	{$xAvailability = "Degraded"; Break}
-		11	{$xAvailability = "Not Installed"; Break}
-		12	{$xAvailability = "Install Error"; Break}
-		13	{$xAvailability = "Power Save - Unknown"; Break}
-		14	{$xAvailability = "Power Save - Low Power Mode"; Break}
-		15	{$xAvailability = "Power Save - Standby"; Break}
-		16	{$xAvailability = "Power Cycle"; Break}
-		17	{$xAvailability = "Power Save - Warning"; Break}
+		1		{$xAvailability = "Other"; Break}
+		2		{$xAvailability = "Unknown"; Break}
+		3		{$xAvailability = "Running or Full Power"; Break}
+		4		{$xAvailability = "Warning"; Break}
+		5		{$xAvailability = "In Test"; Break}
+		6		{$xAvailability = "Not Applicable"; Break}
+		7		{$xAvailability = "Power Off"; Break}
+		8		{$xAvailability = "Off Line"; Break}
+		9		{$xAvailability = "Off Duty"; Break}
+		10		{$xAvailability = "Degraded"; Break}
+		11		{$xAvailability = "Not Installed"; Break}
+		12		{$xAvailability = "Install Error"; Break}
+		13		{$xAvailability = "Power Save - Unknown"; Break}
+		14		{$xAvailability = "Power Save - Low Power Mode"; Break}
+		15		{$xAvailability = "Power Save - Standby"; Break}
+		16		{$xAvailability = "Power Cycle"; Break}
+		17		{$xAvailability = "Power Save - Warning"; Break}
 		Default	{$xAvailability = "Unknown"; Break}
 	}
 
@@ -7076,7 +7159,16 @@ Function OutputNicItem
 {
 	Param([object]$Nic, [object]$ThisNic, [string]$RemoteComputerName)
 	
-	$powerMgmt = Get-WmiObject -computername $RemoteComputerName MSPower_DeviceEnable -Namespace root\wmi | Where-Object{$_.InstanceName -match [regex]::Escape($ThisNic.PNPDeviceID)}
+	If($RemoteComputerName -eq $env:computername)
+	{
+		$powerMgmt = Get-CimInstance -ClassName MSPower_DeviceEnable -Namespace "root\wmi" -Verbose:$False |
+			Where-Object{$_.InstanceName -match [regex]::Escape($ThisNic.PNPDeviceID)}
+	}
+	Else
+	{
+		$powerMgmt = Get-CimInstance -CimSession $RemoteComputerName -ClassName MSPower_DeviceEnable -Namespace "root\wmi" -Verbose:$False |
+			Where-Object{$_.InstanceName -match [regex]::Escape($ThisNic.PNPDeviceID)}
+	}
 
 	If($? -and $Null -ne $powerMgmt)
 	{
@@ -7084,7 +7176,7 @@ Function OutputNicItem
 		{
 			$PowerSaving = "Enabled"
 		}
-		Else
+		Else	
 		{
 			$PowerSaving = "Disabled"
 		}
@@ -7122,7 +7214,14 @@ Function OutputNicItem
 	Try
 	{
 		#https://ios.developreference.com/article/10085450/How+do+I+enable+VRSS+(Virtual+Receive+Side+Scaling)+for+a+Windows+VM+without+relying+on+Enable-NetAdapterRSS%3F
-		$RSSEnabled = (Get-WmiObject -ComputerName $RemoteComputerName MSFT_NetAdapterRssSettingData -Namespace "root\StandardCimV2" -ea 0).Enabled
+		If($RemoteComputerName -eq $env:computername)
+		{
+			$RSSEnabled = (Get-CimInstance -ClassName MSFT_NetAdapterRssSettingData -Namespace "root\StandardCimV2" -ea 0 -Verbose:$False).Enabled
+		}
+		Else
+		{
+			$RSSEnabled = (Get-CimInstance -CimSession $RemoteComputerName -ClassName MSFT_NetAdapterRssSettingData -Namespace "root\StandardCimV2" -ea 0 -Verbose:$False).Enabled
+		}
 
 		If($RSSEnabled)
 		{
@@ -7184,9 +7283,9 @@ Function OutputNicItem
 	$xTcpipNetbiosOptions = ""
 	Switch ($nic.TcpipNetbiosOptions)
 	{
-		0	{$xTcpipNetbiosOptions = "Use NetBIOS setting from DHCP Server"; Break}
-		1	{$xTcpipNetbiosOptions = "Enable NetBIOS"; Break}
-		2	{$xTcpipNetbiosOptions = "Disable NetBIOS"; Break}
+		0		{$xTcpipNetbiosOptions = "Use NetBIOS setting from DHCP Server"; Break}
+		1		{$xTcpipNetbiosOptions = "Enable NetBIOS"; Break}
+		2		{$xTcpipNetbiosOptions = "Disable NetBIOS"; Break}
 		Default	{$xTcpipNetbiosOptions = "Unknown"; Break}
 	}
 	
@@ -7544,31 +7643,31 @@ Function GetConfigWizardInfo
 
 	Switch ($DHCPServicesValue)
 	{
-		1073741824 {$DHCPServices = "The service that runs on another computer"; Break}
-		0 {$DHCPServices = "Microsoft DHCP"; Break}
-		1 {$DHCPServices = "Provisioning Services BOOTP service"; Break}
-		2 {$DHCPServices = "Other BOOTP or DHCP service"; Break}
-		Default {$DHCPServices = "Unable to determine DHCPServices: $($DHCPServicesValue)"; Break}
+		1073741824	{$DHCPServices = "The service that runs on another computer"; Break}
+		0			{$DHCPServices = "Microsoft DHCP"; Break}
+		1			{$DHCPServices = "Provisioning Services BOOTP service"; Break}
+		2			{$DHCPServices = "Other BOOTP or DHCP service"; Break}
+		Default		{$DHCPServices = "Unable to determine DHCPServices: $($DHCPServicesValue)"; Break}
 	}
 
 	If($DHCPServicesValue -eq 1073741824)
 	{
 		Switch ($PXEServiceValue)
 		{
-			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
-			1 {$PXEServices = "Provisioning Services PXE service"; Break}	#pvs7
-			0 {$PXEServices = "Provisioning Services PXE service"; Break}	#pvs6
-			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
+			1073741824	{$PXEServices = "The service that runs on another computer"; Break}
+			1			{$PXEServices = "Provisioning Services PXE service"; Break}	#pvs7
+			0			{$PXEServices = "Provisioning Services PXE service"; Break}	#pvs6
+			Default		{$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
 		}
 	}
 	ElseIf($DHCPServicesValue -eq 0)
 	{
 		Switch ($PXEServiceValue)
 		{
-			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
-			0 {$PXEServices = "Microsoft DHCP"; Break}
-			1 {$PXEServices = "Provisioning Services PXE service"; Break}
-			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
+			1073741824	{$PXEServices = "The service that runs on another computer"; Break}
+			0			{$PXEServices = "Microsoft DHCP"; Break}
+			1			{$PXEServices = "Provisioning Services PXE service"; Break}
+			Default		{$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
 		}
 	}
 	ElseIf($DHCPServicesValue -eq 1)
@@ -7579,9 +7678,9 @@ Function GetConfigWizardInfo
 	{
 		Switch ($PXEServiceValue)
 		{
-			1073741824 {$PXEServices = "The service that runs on another computer"; Break}
-			0 {$PXEServices = "Provisioning Services PXE service"; Break}
-			Default {$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
+			1073741824	{$PXEServices = "The service that runs on another computer"; Break}
+			0			{$PXEServices = "Provisioning Services PXE service"; Break}
+			Default		{$PXEServices = "Unable to determine PXEServices: $($PXEServiceValue)"; Break}
 		}
 	}
 
@@ -8282,10 +8381,20 @@ Function GetPVSServiceInfo
 	Param([string]$ComputerName)
 
 	Write-Verbose "$(Get-Date -Format G): `t`t`t`tProcessing PVS Services for Server $($server.servername)"
-	$Services = Get-WmiObject -ComputerName $ComputerName Win32_Service -EA 0 | `
-	Where-Object {$_.DisplayName -like "Citrix PVS*"} | `
-	Select-Object displayname, name, status, startmode, started, startname, state | `
-	Sort-Object DisplayName
+	If($RemoteComputerName -eq $env:computername)
+	{
+		$Services = Get-CimInstance -ClassName Win32_Service -EA 0 -Verbose:$False | `
+		Where-Object {$_.DisplayName -like "Citrix PVS*"} | `
+		Select-Object displayname, name, status, startmode, started, startname, state | `
+		Sort-Object DisplayName
+	}
+	Else
+	{
+		$Services = Get-CimInstance -CimSession $ComputerName -ClassName Win32_Service -EA 0 -Verbose:$False | `
+		Where-Object {$_.DisplayName -like "Citrix PVS*"} | `
+		Select-Object displayname, name, status, startmode, started, startname, state | `
+		Sort-Object DisplayName
+	}
 	
 	If($? -and $Null -ne $Services)
 	{
@@ -8334,14 +8443,15 @@ Function GetBadStreamingIPAddresses
 	Param([string]$ComputerName)
 	#function updated by Andrew Williamson @ Fujitsu Services to handle servers with multiple NICs
 	#further optimization by Michael B. Smith
+	#updated 11-Mar-2022 to handle the new array type for $Script:NICIPAddresses
 
 	#loop through the configured streaming ip address and compare to the physical configured ip addresses
 	#if a streaming ip address is not in the list of physical ip addresses, it is a bad streaming ip address
 	ForEach ($Stream in ($Script:StreamingIPAddresses | Where-Object {$_.Servername -eq $ComputerName})) {
 		$exists = $false
-		:outerLoop ForEach ($ServerNIC in $Script:NICIPAddresses.Item($ComputerName)) 
+		:outerLoop ForEach ($ServerNIC in ($Script:NICIPAddresses | Where-Object {$_.Servername -eq $ComputerName})) 
 		{
-			ForEach ($IP in $ServerNIC) 
+			ForEach ($IP in $ServerNIC.serverIP) 
 			{ 
 				# there could be more than one IP
 				If ($Stream.IPAddress -eq $IP) 
@@ -8351,7 +8461,7 @@ Function GetBadStreamingIPAddresses
 				}
 			}
 		}
-		if (!$exists) 
+		If (!$exists) 
 		{
 			$obj1 = [PSCustomObject] @{
 				ServerName = $ComputerName			
@@ -8377,7 +8487,7 @@ Function Get-RegKeyToObject
     } 
 	Else 
 	{
-	    $tmp = $val
+	    $tmp = $val.ToString()
     }
 	
 	$obj1 = [PSCustomObject] @{
@@ -9204,9 +9314,7 @@ Function ProcessvDisksinFarm
 
 					If($MSWord -or $PDF)
 					{
-						[System.Collections.Hashtable[]] $ScriptInformation = @()
-						$ScriptInformation += @{ Data = "Boot production devices from version"; Value = $tmp; }
-						$FirstWord = $True
+						WriteWordLine 0 0 "Boot production devices from version: " $tmp
 					}
 					If($Text)
 					{
@@ -9214,9 +9322,7 @@ Function ProcessvDisksinFarm
 					}
 					If($HTML)
 					{
-						$rowdata = @()
-						$columnHeaders = @("Boot production devices from version",($global:htmlsb),$tmp,$htmlwhite)
-						$FirstHTML = $True
+						WriteHTMLLine 0 0 "Boot production devices from version: " $tmp
 					}
 					
 					$VersionFlag = $False
@@ -9329,10 +9435,7 @@ Function ProcessvDisksinFarm
 
 						If($MSWord -or $PDF)
 						{
-							If(!$FirstWord)
-							{
-								[System.Collections.Hashtable[]] $ScriptInformation = @()
-							}
+							[System.Collections.Hashtable[]] $ScriptInformation = @()
 							$ScriptInformation += @{ Data = "Version"; Value = $BootFromVersion; }
 							If($DiskVersion.version -gt $Script:farm.maxVersions -and $VersionFlag -eq $False)
 							{
@@ -9374,7 +9477,6 @@ Function ProcessvDisksinFarm
 							FindWordDocumentEnd
 							$Table = $Null
 							WriteWordLine 0 0 ""
-							$FirstWord = $False
 						}
 						If($Text)
 						{
@@ -9410,15 +9512,8 @@ Function ProcessvDisksinFarm
 						}
 						If($HTML)
 						{
-							If(!$FirstHTML)
-							{
-								$rowdata = @()
-								$columnHeaders = @("Version",($global:htmlsb),$BootFromVersion,$htmlwhite)
-							}
-							Else
-							{
-								$rowdata += @(,('Version',($global:htmlsb),$BootFromVersion,$htmlwhite))
-							}
+							$rowdata = @()
+							$columnHeaders = @("Version",($global:htmlsb),$BootFromVersion,$htmlwhite)
 							If($DiskVersion.version -gt $Script:farm.maxVersions -and $VersionFlag -eq $False)
 							{
 								$rowdata += @(,('Version of vDisk is $($DiskVersion.version) which is greater than the limit of $($Script:farm.maxVersions)',($global:htmlsb),"Consider merging",$htmlwhite))
@@ -9447,10 +9542,9 @@ Function ProcessvDisksinFarm
 							$rowdata += @(,('Replication Status',($global:htmlsb),$goodInventoryStatus,$htmlwhite))
 							$rowdata += @(,('Disk Filename',($global:htmlsb),$DiskVersion.diskFileName,$htmlwhite))
 					
-							$msg = "Boot production devices from version: $($tmp)"
+							$msg = ""
 							FormatHTMLTable $msg "auto" -rowArray $rowdata -columnArray $columnHeaders
-							#WriteHTMLLine 0 0 " "
-							$FirstHTML = $False
+							WriteHTMLLine 0 0 " "
 						}
 					}
 				}
@@ -11275,12 +11369,12 @@ Function ProcessvDisksWithNoAssociation
 		
 		If($UnassociatedvDisks.Count -gt 0)
 		{
-			Write-Verbose "$(Get-Date -Format G): Found $($UnassociatedvDisks.Count) vDisks with no Target Device Associations"
+			#Write-Verbose "$(Get-Date -Format G): Found $($UnassociatedvDisks.Count) vDisks with no Target Device Associations"
 			OutputAppendixI $UnassociatedvDisks
 		}
 		Else
 		{
-			Write-Verbose "$(Get-Date -Format G): All vDisks have Target Device Associations"
+			#Write-Verbose "$(Get-Date -Format G): All vDisks have Target Device Associations"
 			Write-Verbose "$(Get-Date -Format G): "
 			OutputAppendixI $Null
 		}
@@ -11417,6 +11511,7 @@ Function OutputAppendixJ
 		$selection.InsertNewPage()
 		WriteWordLine 1 0 "Appendix J - Bad Streaming IP Addresses"
 		WriteWordLine 0 0 "Streaming IP addresses that do not exist on the server"
+		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
 	{
@@ -11427,6 +11522,7 @@ Function OutputAppendixJ
 	{
 		WriteHTMLLine 1 0 "Appendix J - Bad Streaming IP Addresses"
 		WriteHTMLLine 0 0 "Streaming IP addresses that do not exist on the server"
+		$rowdata = @()
 	}
 
 	If($Script:PVSVersion -eq "7")
@@ -11465,7 +11561,7 @@ Function OutputAppendixJ
 			{
 				$Table = AddWordTable -Hashtable $ItemsWordTable `
 				-Columns ServerName, 
-					IPAddress	`
+					IPAddress `
 				-Headers "Server Name", 
 					"Streaming IP Address" `
 				-AutoFit $wdAutoFitContent;
@@ -12515,6 +12611,7 @@ Function OutputAppendixQ
 	If($HTML)
 	{
 		WriteHTMLLine 1 0 "Appendix Q - Server Items to Review"
+		WriteHTMLLine 2 0 "Computer Items to Review"
 		$rowdata = @()
 	}
 
@@ -12619,7 +12716,7 @@ Function OutputAppendixQ
 
 	If($MSWord -or $PDF)
 	{
-		WriteWordLine 3 0 "Drive Items to Review"
+		WriteWordLine 2 0 "Drive Items to Review"
 		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
@@ -12633,7 +12730,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
-		WriteHTMLLine 3 0 "Drive Items to Review"
+		WriteHTMLLine 2 0 "Drive Items to Review"
 		$rowdata = @()
 	}
 
@@ -12723,7 +12820,7 @@ Function OutputAppendixQ
 
 	If($MSWord -or $PDF)
 	{
-		WriteWordLine 3 0 "Processor Items to Review"
+		WriteWordLine 2 0 "Processor Items to Review"
 		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
@@ -12737,7 +12834,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
-		WriteHTMLLine 3 0 "Processor Items to Review"
+		WriteHTMLLine 2 0 "Processor Items to Review"
 		$rowdata = @()
 	}
 
@@ -12827,7 +12924,7 @@ Function OutputAppendixQ
 
 	If($MSWord -or $PDF)
 	{
-		WriteWordLine 3 0 "NIC Items to Review"
+		WriteWordLine 2 0 "NIC Items to Review"
 		[System.Collections.Hashtable[]] $ItemsWordTable = @();
 	}
 	If($Text)
@@ -12841,7 +12938,7 @@ Function OutputAppendixQ
 	}
 	If($HTML)
 	{
-		WriteHTMLLine 3 0 "NIC Items to Review"
+		WriteHTMLLine 2 0 "NIC Items to Review"
 		$rowdata = @()
 	}
 
@@ -13178,9 +13275,7 @@ Function ProcessScriptEnd
 		}
 		Out-File -FilePath $SIFile -Append -InputObject "Folder              : $Folder" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "From                : $From" 4>$Null
-		Out-File -FilePath $SIFile -Append -InputObject "Limit Target Devices: $LimitTargetDevices" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "Log                 : $Log" 4>$Null
-		Out-File -FilePath $SIFile -Append -InputObject "PVS Version         : $Script:Version.ToString()" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "Report Footer       : $ReportFooter" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "Save As HTML        : $HTML" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "Save As PDF         : $PDF" 4>$Null
@@ -13196,11 +13291,11 @@ Function ProcessScriptEnd
 		Out-File -FilePath $SIFile -Append -InputObject "User                : $User" 4>$Null
 		If($MSWORD -or $PDF)
 		{
-			Out-File -FilePath $SIFile -Append -InputObject "User Name           : $UserName" 4>$Null
+			Out-File -FilePath $SIFile -Append -InputObject "Username            : $UserName" 4>$Null
 		}
 		Out-File -FilePath $SIFile -Append -InputObject "" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "OS Detected         : $Script:RunningOS" 4>$Null
-		Out-File -FilePath $SIFile -Append -InputObject "PoSH version        : $Host.Version" 4>$Null
+		Out-File -FilePath $SIFile -Append -InputObject "PoSH version        : $($Host.Version)" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "PSCulture           : $PSCulture" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "PSUICulture         : $PSUICulture" 4>$Null
 		If($MSWORD -or $PDF)

@@ -7,7 +7,7 @@
 #V2.00 is based on 1.24
 #
 
-#Version 2.00
+#Version 2.00 14-Mar-2022
 #	Added MultiSubnetFailover to Farm Status section
 #		Thanks to Arnaud Pain
 #		I can't believe no one has asked for this since PVS 7.11 was released on 14-Sep-2016
@@ -63,9 +63,15 @@
 #	Dropped support for PVS 5. The V1.24 script still supports PVS 5.x
 #	Fixed a bug in Function GetInstalledRolesAndFeatures that didn't handle the condition of no installed Roles or Features
 #		Thanks to Arnaud Pain for reporting this
-#	Fixed bug when retrieving a Device Collection's Administrators and Operators
+#	Fixed a bug when retrieving a Device Collection's Administrators and Operators
 #		I was not comparing to the specific device collection name, which returned all administrators and 
 #		operators for all device collections and not the device collection being processed 
+#	Fixed a bug with handling a PVS server with multiple NICs and multiple IPv4 addresses
+#		This bug has existed since I created the script in 2012
+#		I changed the $Script:NICIPAddresses array from @{} to New-Object System.Collections.ArrayList
+#		Updated Function ProcessPVSSite to use Get-NetIPAddress -CimSession to get all the IPv4 addresses
+#		This allows the gathering of IPv4 addresses regardless of the OS or PVS version
+#		Updated Function GetBadStreamingIPAddresses to work with the new array type for $Script:NICIPAddresses
 #	Format the Farm, Properties, Status section to match the console output
 #	In Function DeviceStatus, change the output of the Target device's active/inactive status and license type
 #	In Function GetBootstrapInfo, for HTML output, check if any array items exist before outputting a blank table with only column headings
@@ -77,6 +83,7 @@
 #		If the registry value DisableTaskOffload does not exist, from "Missing" to "Not defined"
 #		To a String[] so the HTML output works
 #	In Function ProcessStores, change the Word/PDF and HTML output to tables instead of individual lines
+#	Replaced all Get-WmiObject with Get-CimInstance
 #	Replaced most script Exit calls with AbortScript to stop the transcript log if the log was enabled and started
 #	Updated the following functions to the latest versions:
 #		AbortScript
