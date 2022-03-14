@@ -470,7 +470,7 @@
 	NAME: PVS_HealthCheck_V2.ps1
 	VERSION: 2.00
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 12, 2022
+	LASTEDIT: March 14, 2022
 #>
 
 
@@ -746,7 +746,7 @@ $global:emailCredentials  = $Null
 #Report footer stuff
 $script:MyVersion         = 'V2.00'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/12/2022"
+$tmpdate                  = [datetime] "03/14/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
