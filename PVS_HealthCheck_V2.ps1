@@ -468,9 +468,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2.00
+	VERSION: 2.01
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: March 14, 2022
+	LASTEDIT: March 29, 2022
 #>
 
 
@@ -584,6 +584,10 @@ Param(
 #V2 script created February 23, 2022
 #released to the community on 
 #V2.00 is based on 1.24
+#
+#Version 2.01 29-Mar-2022
+#	Fixed bug in Function DeviceStatus where I used the wrong device property to check for the active status
+#	Some general code cleanup
 #
 #Version 2.00 14-Mar-2022
 #	Added MultiSubnetFailover to Farm Status section
@@ -744,9 +748,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2.00'
+$script:MyVersion         = 'V2.01'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "03/14/2022"
+$tmpdate                  = [datetime] "03/29/2022"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -4934,7 +4938,7 @@ Function DeviceStatus
 {
 	Param($xDevice)
 
-	If($Null -eq $xDevice -or $xDevice.status -eq "" -or $xDevice.status -eq "0")
+	If($Null -eq $xDevice -or $xDevice.active -eq "0")
 	{
 		If($MSWord -or $PDF)
 		{
@@ -6695,7 +6699,7 @@ Function GetComputerWMIInfo
 		} 
 		Else 
 		{ 
-			$GotNics = !($Nics.__PROPERTY_COUNT -eq 0) 
+			$GotNics = $True
 		} 
 	
 		If($GotNics)
@@ -7960,19 +7964,19 @@ Function GetBootstrapInfo
 							If($Script:PVSVersion -eq "7")
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver1_Ip; 
-								Port = $ServerBootstrap.bootserver1_Port; 
+								IPAddress  = $ServerBootstrap.bootserver1_Ip; 
+								Port       = $ServerBootstrap.bootserver1_Port; 
 								SubnetMask = $ServerBootstrap.bootserver1_Netmask; 
-								Gateway = $ServerBootstrap.bootserver1_Gateway;}
+								Gateway    = $ServerBootstrap.bootserver1_Gateway;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 							Else
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver1_Ip; 
+								IPAddress  = $ServerBootstrap.bootserver1_Ip; 
 								SubnetMask = $ServerBootstrap.bootserver1_Netmask; 
-								Gateway = $ServerBootstrap.bootserver1_Gateway;
-								Port = $ServerBootstrap.bootserver1_Port;}
+								Gateway    = $ServerBootstrap.bootserver1_Gateway;
+								Port       = $ServerBootstrap.bootserver1_Port;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 						}
@@ -7982,19 +7986,19 @@ Function GetBootstrapInfo
 							If($Script:PVSVersion -eq "7")
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver2_Ip; 
-								Port = $ServerBootstrap.bootserver2_Port; 
+								IPAddress  = $ServerBootstrap.bootserver2_Ip; 
+								Port       = $ServerBootstrap.bootserver2_Port; 
 								SubnetMask = $ServerBootstrap.bootserver2_Netmask; 
-								Gateway = $ServerBootstrap.bootserver2_Gateway;}
+								Gateway    = $ServerBootstrap.bootserver2_Gateway;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 							Else
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver2_Ip; 
+								IPAddress  = $ServerBootstrap.bootserver2_Ip; 
 								SubnetMask = $ServerBootstrap.bootserver2_Netmask; 
-								Gateway = $ServerBootstrap.bootserver2_Gateway;
-								Port = $ServerBootstrap.bootserver2_Port;}
+								Gateway    = $ServerBootstrap.bootserver2_Gateway;
+								Port       = $ServerBootstrap.bootserver2_Port;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 						}
@@ -8004,19 +8008,19 @@ Function GetBootstrapInfo
 							If($Script:PVSVersion -eq "7")
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver3_Ip; 
-								Port = $ServerBootstrap.bootserver3_Port; 
+								IPAddress  = $ServerBootstrap.bootserver3_Ip; 
+								Port       = $ServerBootstrap.bootserver3_Port; 
 								SubnetMask = $ServerBootstrap.bootserver3_Netmask; 
-								Gateway = $ServerBootstrap.bootserver3_Gateway;}
+								Gateway    = $ServerBootstrap.bootserver3_Gateway;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 							Else
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver3_Ip; 
+								IPAddress  = $ServerBootstrap.bootserver3_Ip; 
 								SubnetMask = $ServerBootstrap.bootserver3_Netmask; 
-								Gateway = $ServerBootstrap.bootserver3_Gateway;
-								Port = $ServerBootstrap.bootserver3_Port;}
+								Gateway    = $ServerBootstrap.bootserver3_Gateway;
+								Port       = $ServerBootstrap.bootserver3_Port;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 						}
@@ -8026,19 +8030,19 @@ Function GetBootstrapInfo
 							If($Script:PVSVersion -eq "7")
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver4_Ip; 
-								Port = $ServerBootstrap.bootserver4_Port; 
+								IPAddress  = $ServerBootstrap.bootserver4_Ip; 
+								Port       = $ServerBootstrap.bootserver4_Port; 
 								SubnetMask = $ServerBootstrap.bootserver4_Netmask; 
-								Gateway = $ServerBootstrap.bootserver4_Gateway;}
+								Gateway    = $ServerBootstrap.bootserver4_Gateway;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 							Else
 							{
 								$WordTableRowHash = @{ 
-								IPAddress = $ServerBootstrap.bootserver4_Ip; 
+								IPAddress  = $ServerBootstrap.bootserver4_Ip; 
 								SubnetMask = $ServerBootstrap.bootserver4_Netmask; 
-								Gateway = $ServerBootstrap.bootserver4_Gateway;
-								Port = $ServerBootstrap.bootserver4_Port;}
+								Gateway    = $ServerBootstrap.bootserver4_Gateway;
+								Port       = $ServerBootstrap.bootserver4_Port;}
 								$ItemsWordTable += $WordTableRowHash;
 							}
 						}
