@@ -372,14 +372,14 @@
 .EXAMPLE
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -Dev -ScriptInfo -Log
 	
-	Creates a text file named PVSHealthCheckScriptErrors_yyyyMMddTHHmmssffff.txt that 
+	Creates a text file named PVSHealthCheckV2ScriptErrors_yyyyMMddTHHmmssffff.txt that 
 	contains up to the last 250 errors reported by the script.
 	
-	Creates a text file named PVSHealthCheckScriptInfo_yyyy-MM-dd_HHmm.txt that 
+	Creates a text file named PVSHealthCheckV2ScriptInfo_yyyy-MM-dd_HHmm.txt that 
 	contains all the script parameters and other basic information.
 	
 	Creates a text file for transcript logging named 
-	PVSHealthCheckScriptTranscript_yyyyMMddTHHmmssffff.txt.
+	PVSHealthCheckV2ScriptV2Transcript_yyyyMMddTHHmmssffff.txt.
 .EXAMPLE
 	PS C:\PSScript > .\PVS_HealthCheck_V2.ps1 -CSV
 	
@@ -468,9 +468,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2.02
+	VERSION: 2.03
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: April 26, 2022
+	LASTEDIT: April 17, 2023
 #>
 
 
@@ -584,6 +584,28 @@ Param(
 #V2 script created February 23, 2022
 #released to the community on 
 #V2.00 is based on 1.24
+#
+#Version 2.03 17-Apr-2023
+#	Added new Farm properties introduced in 2303, SetupType and CloudSetupActive
+#		If(SetupType -eq 1 -and CloudSetupActive -eq $True )
+#		{
+#			"Farm is in cloud setup and all PVS servers have updated to cloud mode"
+#		}
+#		ElseIf(SetupType -eq 1 -and CloudSetupActive -eq $False )
+#		{
+#			"Farm is in cloud setup and all PVS servers have not updated to cloud mode"
+#		}
+#		ElseIf(SetupType -eq 0)
+#		{
+#			"Farm is in on-premises mode"
+#		}
+#	In Function OutputSite:
+#		If SetupType is 1 (Cloud), output the Cloud Customer ID and Name in the Licensing section
+#	Renamed transcript log file from PVSHealthCheckScriptTranscript to PVSHealthCheckV2ScriptTranscript
+#	Renamed script errors file from PVSHealthCheckScriptErrors to PVSHealthCheckV2ScriptErrors
+#	Renamed script info file from PVSInventoryScriptInfo to PVSHealthCheckV2ScriptInfo
+#	Updated the ReadMe file
+#	Updated the help text
 #
 #Version 2.02 26-Apr-2022
 #	In Function OutputNicItem, fixed several issues with DHCP data
@@ -751,9 +773,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2.02'
+$script:MyVersion         = 'V2.03'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "04/26/2022"
+$tmpdate                  = [datetime] "04/17/2023"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -949,7 +971,7 @@ If(![String]::IsNullOrEmpty($To) -and [String]::IsNullOrEmpty($SmtpServer))
 If($Log) 
 {
 	#start transcript logging
-	$Script:LogPath = "$Script:pwdpath\PVSHealthCheckScriptTranscript_$(Get-Date -f FileDateTime).txt"
+	$Script:LogPath = "$Script:pwdpath\PVSHealthCheckV2ScriptTranscript_$(Get-Date -f FileDateTime).txt"
 	
 	try 
 	{
@@ -967,7 +989,7 @@ If($Log)
 If($Dev)
 {
 	$Error.Clear()
-	$Script:DevErrorFile = "$Script:pwdpath\PVSHealthCheckScriptErrors_$(Get-Date -f FileDateTime).txt"
+	$Script:DevErrorFile = "$Script:pwdpath\PVSHealthCheckV2ScriptErrors_$(Get-Date -f FileDateTime).txt"
 }
 
 $Script:ItemsToReview                = New-Object System.Collections.ArrayList
@@ -4535,12 +4557,43 @@ Function ProcessPVSFarm
 				$ScriptInformation += @{ Data = "     On-Premises"; Value = "Yes"; }
 				$ScriptInformation += @{ Data = "          Use Datacenter licenses for desktops if no Desktop licenses are available"; Value = $DatacenterLicense; }
 				$ScriptInformation += @{ Data = "     Cloud"; Value = "No"; }
+				If(validObject $farm CloudSetupActive) #added in PVS 2303
+				{
+					<#
+						SetupType: Either on-premise or cloud. 0 for on-premise mode, 1 for cloud mode. Min=0, Max=1, Default=0
+						
+						CloudSetupActive: True if farm is in cloud setup and all PVS servers have also been updated to cloud mode.
+						Default=false
+					#>
+					$ScriptInformation += @{ Data = "     Farm is in on-premises mode"; Value = ""; }
+				}
 			}
 			ElseIf($Script:farm.LicenseSKU -eq 1)
 			{
 				$ScriptInformation += @{ Data = "     On-Premises"; Value = "No"; }
 				$ScriptInformation += @{ Data = "          Use Datacenter licenses for desktops if no Desktop licenses are available"; Value = $DatacenterLicense; }
 				$ScriptInformation += @{ Data = "     Cloud"; Value = "Yes"; }
+				If(validObject $Script:farm CloudSetupActive) #added in PVS 2303
+				{
+					<#
+						SetupType: Either on-premise or cloud. 0 for on-premise mode, 1 for cloud mode. Min=0, Max=1, Default=0
+						
+						CloudSetupActive: True if farm is in cloud setup and all PVS servers have also been updated to cloud mode.
+						Default=false
+					#>
+					If($Script:farm.SetupType -eq 1 -and $Script:farm.CloudSetupActive -eq 1 )
+					{
+						$ScriptInformation += @{ Data = "     Cloud Customer ID"; Value = $Script:farm.CustomerId; }
+						$ScriptInformation += @{ Data = "     Cloud Customer Name"; Value = $Script:farm.CustomerName; }
+						$ScriptInformation += @{ Data = "     Farm is in cloud setup and all PVS servers have updated to cloud mode"; Value = ""; }
+					}
+					ElseIf($Script:farm.SetupType -eq 1 -and $Script:farm.CloudSetupActive -eq 0 )
+					{
+						$ScriptInformation += @{ Data = "     Cloud Customer ID"; Value = $Script:farm.CustomerId; }
+						$ScriptInformation += @{ Data = "     Cloud Customer Name"; Value = $Script:farm.CustomerName; }
+						$ScriptInformation += @{ Data = "     Farm is in cloud setup and all PVS servers have not updated to cloud mode"; Value = ""; }
+					}
+				}
 			}
 			Else
 			{
@@ -4579,12 +4632,43 @@ Function ProcessPVSFarm
 				Line 3 "On-Premises`t: " "Yes"
 				Line 4 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
 				Line 3 "Cloud`t`t: " "No"
+				If(validObject $Script:farm CloudSetupActive) #added in PVS 2303
+				{
+					<#
+						SetupType: Either on-premise or cloud. 0 for on-premise mode, 1 for cloud mode. Min=0, Max=1, Default=0
+						
+						CloudSetupActive: True if farm is in cloud setup and all PVS servers have also been updated to cloud mode.
+						Default=false
+					#>
+					Line 4 "Farm is in on-premises mode"
+				}
 			}
-			ElseIf($Scrpt:farm.LicenseSKU -eq 1)
+			ElseIf($Script:farm.LicenseSKU -eq 1)
 			{
 				Line 3 "On-Premises`t: " "No"
 				Line 4 "Use Datacenter licenses for desktops if no Desktop licenses are available: " $DatacenterLicense
 				Line 3 "Cloud`t`t: " "Yes"
+				If(validObject $Script:farm CloudSetupActive) #added in PVS 2303
+				{
+					<#
+						SetupType: Either on-premise or cloud. 0 for on-premise mode, 1 for cloud mode. Min=0, Max=1, Default=0
+						
+						CloudSetupActive: True if farm is in cloud setup and all PVS servers have also been updated to cloud mode.
+						Default=false
+					#>
+					If($Script:farm.SetupType -eq 1 -and $Script:farm.CloudSetupActive -eq 1 )
+					{
+						Line 4 "Cloud Customer ID`t: " $Script:farm.CustomerId
+						Line 4 "Cloud Customer Name`t: " $Script:farm.CustomerName
+						Line 4 "Farm is in cloud setup and all PVS servers have updated to cloud mode"
+					}
+					ElseIf($Script:farm.SetupType -eq 1 -and $Script:farm.CloudSetupActive -eq 0 )
+					{
+						Line 4 "Cloud Customer ID`t: " $Script:farm.CustomerId
+						Line 4 "Cloud Customer Name`t: " $Script:farm.CustomerName
+						Line 4 "Farm is in cloud setup and all PVS servers have not updated to cloud mode"
+					}
+				}
 			}
 			Else
 			{
@@ -4612,12 +4696,43 @@ Function ProcessPVSFarm
 				$rowdata += @(,("     On-Premises",($global:htmlsb),"Yes",$htmlwhite))
 				$rowdata += @(,("          Use Datacenter licenses for desktops if no Desktop licenses are available",($global:htmlsb),$DatacenterLicense,$htmlwhite))
 				$rowdata += @(,("     Cloud",($global:htmlsb),"No",$htmlwhite))
+				If(validObject $Script:farm CloudSetupActive) #added in PVS 2303
+				{
+					<#
+						SetupType: Either on-premise or cloud. 0 for on-premise mode, 1 for cloud mode. Min=0, Max=1, Default=0
+						
+						CloudSetupActive: True if farm is in cloud setup and all PVS servers have also been updated to cloud mode.
+						Default=false
+					#>
+					rowdata += @(,("     Farm is in on-premises mode",($htmlsilver -bor $htmlbold),"",$htmlwhite))
+				}
 			}
 			ElseIf($Script:farm.LicenseSKU -eq 1)
 			{
 				$rowdata += @(,("     On-Premises",($global:htmlsb),"No",$htmlwhite))
 				$rowdata += @(,("          Use Datacenter licenses for desktops if no Desktop licenses are available",($global:htmlsb),$DatacenterLicense,$htmlwhite))
 				$rowdata += @(,("     Cloud",($global:htmlsb),"Yes",$htmlwhite))
+				If(validObject $Script:farm CloudSetupActive) #added in PVS 2303
+				{
+					<#
+						SetupType: Either on-premise or cloud. 0 for on-premise mode, 1 for cloud mode. Min=0, Max=1, Default=0
+						
+						CloudSetupActive: True if farm is in cloud setup and all PVS servers have also been updated to cloud mode.
+						Default=false
+					#>
+					If($Script:farm.SetupType -eq 1 -and $Script:farm.CloudSetupActive -eq 1 )
+					{
+						$rowdata += @(,("     Cloud Customer ID",($htmlsilver -bor $htmlbold),$Script:farm.CustomerId,$htmlwhite))
+						$rowdata += @(,("     Cloud Customer Name",($htmlsilver -bor $htmlbold),$Script:farm.CustomerName,$htmlwhite))
+						$rowdata += @(,("     Farm is in cloud setup and all PVS servers have updated to cloud mode",($htmlsilver -bor $htmlbold),"",$htmlwhite))
+					}
+					ElseIf($Script:farm.SetupType -eq 1 -and $Script:farm.CloudSetupActive -eq 0 )
+					{
+						$rowdata += @(,("     Cloud Customer ID",($htmlsilver -bor $htmlbold),$Script:farm.CustomerId,$htmlwhite))
+						$rowdata += @(,("     Cloud Customer Name",($htmlsilver -bor $htmlbold),$Script:farm.CustomerName,$htmlwhite))
+						$rowdata += @(,("     Farm is in cloud setup and all PVS servers have not updated to cloud mode",($htmlsilver -bor $htmlbold),"",$htmlwhite))
+					}
+				}
 			}
 			Else
 			{
@@ -4817,7 +4932,7 @@ Function ProcessPVSFarm
 		$ScriptInformation += @{ Data = "Failover Partner Server"; Value = $Script:farm.failoverPartnerServerName; }
 		$ScriptInformation += @{ Data = "Failover Partner Server IP"; Value = $FailoverSQLServerIPAddress; }
 		$ScriptInformation += @{ Data = "Failover Partner Instance"; Value = $Script:farm.failoverPartnerServerName; }
-		$ScriptInformation += @{ Data = "MultiSubnetFailover"; Value = $MultiSubnetFailover; }
+		$ScriptInformation += @{ Data = "Multi-subnet Failover"; Value = $MultiSubnetFailover; }
 		$ScriptInformation += @{ Data = $xadGroupsEnabled; Value = ""; }
 		$Table = AddWordTable -Hashtable $ScriptInformation `
 		-Columns Data,Value `
@@ -4844,7 +4959,7 @@ Function ProcessPVSFarm
 		Line 3 "Failover Partner Server`t`t: " $Script:farm.failoverPartnerServerName
 		Line 3 "Failover Partner Server IP`t: " $FailoverSQLServerIPAddress
 		Line 3 "Failover Partner Instance`t: " $Script:farm.failoverPartnerInstanceName
-		Line 3 "MultiSubnetFailover`t`t: " $MultiSubnetFailover
+		Line 3 "Multi-subnet Failover`t`t: " $MultiSubnetFailover
 		Line 3 $xadGroupsEnabled
 		Line 0 ""
 	}
@@ -4859,7 +4974,7 @@ Function ProcessPVSFarm
 		$rowdata += @(,('Failover Partner Server',($global:htmlsb),$Script:farm.failoverPartnerServerName,$htmlwhite))
 		$rowdata += @(,('Failover Partner Server IP',($global:htmlsb),$FailoverSQLServerIPAddress,$htmlwhite))
 		$rowdata += @(,('Failover Partner Instance',($global:htmlsb),$Script:farm.failoverPartnerInstanceName,$htmlwhite))
-		$rowdata += @(,('MultiSubnetFailover',($global:htmlsb),$MultiSubnetFailover,$htmlwhite))
+		$rowdata += @(,('Multi-subnet Failover',($global:htmlsb),$MultiSubnetFailover,$htmlwhite))
 		$rowdata += @(,('',($global:htmlsb),$xadGroupsEnabled,$htmlwhite))
 		
 		$msg = "Current status of the farm"
@@ -9957,16 +10072,7 @@ Function ProcessStores
 			#Run through the servers again and test each one for the path
 			ForEach ($StoreServer in $StoreServers)
 			{
-				#next few lines from Guy Leech
-                [hashtable]$invokeCommandParameters = @{}
-                If( $StoreServer -ne $env:COMPUTERNAME -and $StoreServer -ne "$env:COMPUTERNAME.$env:UserDnsDomain" )
-                {
-                    $invokeCommandParameters.Add( 'ComputerName' , $StoreServer )
-                }
-				If(Invoke-Command @invokeCommandParameters `
-				    -ScriptBlock { Param( [string]$path ) ; `
-				    Test-Path -Path $path -PathType Container -ErrorAction SilentlyContinue } `
-				    -ArgumentList $store.path)
+				If(Test-Path -Path $Store.path -PathType Container -ErrorAction SilentlyContinue)
 				{
 					If($MSWord -or $PDF)
 					{
@@ -10067,16 +10173,7 @@ Function ProcessStores
 				{
 					ForEach($WCPath in $WCPaths)
 					{
-						#next few lines from Guy Leech
-						[hashtable]$invokeCommandParameters = @{}
-						If( $StoreServer -ne $env:COMPUTERNAME -and $StoreServer -ne "$env:COMPUTERNAME.$env:UserDnsDomain" )
-						{
-							$invokeCommandParameters.Add( 'ComputerName' , $StoreServer )
-						}
-						If(Invoke-Command @invokeCommandParameters `
-							-ScriptBlock { Param( [string]$path ) ; `
-							Test-Path -Path $path -PathType Container -ErrorAction SilentlyContinue } `
-							-ArgumentList $WCPath)
+						If(Test-Path -Path $WCPath -PathType Container -ErrorAction SilentlyContinue )
 						{
 							If($MSWord -or $PDF)
 							{
@@ -13264,7 +13361,7 @@ Function ProcessScriptEnd
 
 	If($ScriptInfo)
 	{
-		$SIFile = "$($Script:pwdpath)\PVSInventoryScriptInfo_$(Get-Date -f yyyy-MM-dd_HHmm).txt"
+		$SIFile = "$($Script:pwdpath)\PVSHealthCheckV2ScriptInfo_$(Get-Date -f yyyy-MM-dd_HHmm).txt"
 		Out-File -FilePath $SIFile -InputObject "" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "Add DateTime        : $AddDateTime" 4>$Null
 		Out-File -FilePath $SIFile -Append -InputObject "AdminAddress        : $AdminAddress" 4>$Null
@@ -13464,8 +13561,6 @@ Function Check-NeededPSSnapins
 					Write-Error "
 	`n`n
 	Error loading snapin: $($error[0].Exception.Message)
-	`n`n
-	Script cannot continue.
 	`n`n"
 					Return $false
 				}				
