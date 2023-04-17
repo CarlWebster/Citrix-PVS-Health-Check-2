@@ -7,6 +7,28 @@
 #V2.00 is based on 1.24
 #
 
+#Version 2.03 17-Apr-2023
+#	Added new Farm properties introduced in 2303, SetupType and CloudSetupActive
+#		If(SetupType -eq 1 -and CloudSetupActive -eq $True )
+#		{
+#			"Farm is in cloud setup and all PVS servers have updated to cloud mode"
+#		}
+#		ElseIf(SetupType -eq 1 -and CloudSetupActive -eq $False )
+#		{
+#			"Farm is in cloud setup and all PVS servers have not updated to cloud mode"
+#		}
+#		ElseIf(SetupType -eq 0)
+#		{
+#			"Farm is in on-premises mode"
+#		}
+#	In Function OutputSite:
+#		If SetupType is 1 (Cloud), output the Cloud Customer ID and Name in the Licensing section
+#	Renamed transcript log file from PVSHealthCheckScriptTranscript to PVSHealthCheckV2ScriptTranscript
+#	Renamed script errors file from PVSHealthCheckScriptErrors to PVSHealthCheckV2ScriptErrors
+#	Renamed script info file from PVSInventoryScriptInfo to PVSHealthCheckV2ScriptInfo
+#	Updated the ReadMe file
+#	Updated the help text
+
 #Version 2.02 26-Apr-2022
 #	In Function OutputNicItem, fixed several issues with DHCP data
 
