@@ -468,9 +468,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2.03
+	VERSION: 2.04
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: April 17, 2023
+	LASTEDIT: July 14, 2023
 #>
 
 
@@ -585,6 +585,11 @@ Param(
 #released to the community on 
 #V2.00 is based on 1.24
 #
+#Version 2.04 14-Jul-2023
+#	Added the following regkeys from https://support.citrix.com/article/CTX133877/timeout-error-4002-in-provisioning-server-console-after-clicking-show-connected-devices 
+#		HKLM:\software\citrix\provisioningServices\Manager\RelayedRequestReplyTimeoutMilliseconds    
+#		HKLM:\software\citrix\provisioningServices\Manager\RelayedRequestTryTimes
+#	
 #Version 2.03 17-Apr-2023
 #	Added new Farm properties introduced in 2303, SetupType and CloudSetupActive
 #		If(SetupType -eq 1 -and CloudSetupActive -eq $True )
@@ -8648,7 +8653,7 @@ Function GetMiscRegistryKeys
 	#look for the following registry keys and values on PVS servers
 		
 	#Registry Key                                                      Registry Value                 
-	#=================================================================================================
+	#========================================================================================================
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        AutoUpdateUserCache            
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        LoggingLevel 
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices                        SkipBootMenu                   
@@ -8658,6 +8663,8 @@ Function GetMiscRegistryKeys
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    PortBase 
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\IPC                    PortCount 
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager                GeneralInetAddr                
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager                RelayedRequestReplyTimeoutMilliseconds
+	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager                RelayedRequestTryTimes
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             IPCTraceFile 
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             IPCTraceState 
 	#HKLM:\SOFTWARE\Citrix\ProvisioningServices\MgmtDaemon             PortOffset 
@@ -8700,6 +8707,10 @@ Function GetMiscRegistryKeys
 
 	#https://support.citrix.com/article/CTX200196
 	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager" "UseTemplateBootOrder" $ComputerName
+
+	#https://support.citrix.com/article/CTX133877/timeout-error-4002-in-provisioning-server-console-after-clicking-show-connected-devices
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager" "RelayedRequestReplyTimeoutMilliseconds" $ComputerName
+	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\Manager" "RelayedRequestTryTimes" $ComputerName
 
 	#https://support.citrix.com/article/CTX135299
 	Get-RegKeyToObject "HKLM:\SOFTWARE\Citrix\ProvisioningServices\StreamProcess" "UseTemplateBootOrder" $ComputerName
@@ -13681,8 +13692,8 @@ ProcessScriptEnd
 # SIG # Begin signature block
 # MIItUQYJKoZIhvcNAQcCoIItQjCCLT4CAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUVOReBRgaJd4glcGs5VgfUJRN
-# iHKggiaxMIIFjTCCBHWgAwIBAgIQDpsYjvnQLefv21DiCEAYWjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUHMHXniONQLkrUxN+Sx0lfTc8
+# xPmggiaxMIIFjTCCBHWgAwIBAgIQDpsYjvnQLefv21DiCEAYWjANBgkqhkiG9w0B
 # AQwFADBlMQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYD
 # VQQLExB3d3cuZGlnaWNlcnQuY29tMSQwIgYDVQQDExtEaWdpQ2VydCBBc3N1cmVk
 # IElEIFJvb3QgQ0EwHhcNMjIwODAxMDAwMDAwWhcNMzExMTA5MjM1OTU5WjBiMQsw
@@ -13892,33 +13903,33 @@ ProcessScriptEnd
 # AlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQg
 # VHJ1c3RlZCBHNCBDb2RlIFNpZ25pbmcgUlNBNDA5NiBTSEEzODQgMjAyMSBDQTEC
 # EAW6Vi5Lenb3LWKVYisrl2YwCQYFKw4DAhoFAKBAMBkGCSqGSIb3DQEJAzEMBgor
-# BgEEAYI3AgEEMCMGCSqGSIb3DQEJBDEWBBREx3RQZ4sJW42VvT0v6Am+W4EAfTAN
-# BgkqhkiG9w0BAQEFAASCAgBWakpAn+ynUJDeHJy+6fnMK/nQhBqxiHgXi3X2CKMk
-# fSfwopQs/qvdENN7fN2TE/BhQWfmQgFBSzRX9owcj/e37BojcBjQzd/VtaZlaW76
-# ob02zbcI5WvAZ4AnI55CmxAP92ecpDjRIKeD1z+QXMKcoAi7mAvLxWY6qd3vmj8H
-# 3UnK5s1ELxeggkW6bWf9rfC9h2mF4Mt0+vRgnhmoLO1LOpI+ctdEEiQpwvGvnBFP
-# RxlEIJZe4twTHwYi/k2bS2SwVxyDIfDg8oqbEStwsyKgS1Z1gxoLnNMc88sQC+Cz
-# oreYjc3QO0PxldJmbXLnci0ivWgIGbWVBS60/Wfdic3nrZp55wn4wOoa4TVJbtuN
-# 1uQXHKbYz+iQf5P5ddqx8KojU+0bwiIuOrzKVozHEFsxqpfpleYe20y5nSiVzIGo
-# RpQiPZXuC5sDQncmoiB/WF7LDP0pgs6IQk/mGhm2F86MRkb4JrW5ePv9zWZl2Tcj
-# ArCMh/Qril8SyfOgl60doBaFbPlmpsJ3+D8PFAaxd/goMlOg63f42aBT6Ust+fXg
-# xccYEnhL3mPIWddSroVAzLYj5jqsv26yvzgvCMoqHhWBEEpn2m3G51VbJTbl7t1Q
-# +/8PlaP4kJtu/OQkSPL72KgOsauTrM9pVHZHL/ZSvLYxFcyKiRFbZ+jG1VVaPFkP
-# LaGCAyAwggMcBgkqhkiG9w0BCQYxggMNMIIDCQIBATB3MGMxCzAJBgNVBAYTAlVT
+# BgEEAYI3AgEEMCMGCSqGSIb3DQEJBDEWBBTp7CNeXLbGpC54ttPGNjo3MPZUEDAN
+# BgkqhkiG9w0BAQEFAASCAgAMQwfzihc/IHIqyyG/Fzr4D4mga6td7mRUB02SbPWp
+# Wp5nJrqvtX+l6ncz43pZRYiwZ2qo+hGA3QhXznnobXJuzXKMl7qHRRr/ZOUrp13i
+# KMd7sn10AlPSHzR/Zfknqnz1J6Acij0cAq6b/T3hOiug1kofg4/jtm0rfaO3DPOd
+# q8scA2cH8DK/x7o018+cFsneOqF7qoSUrkabNbeb6akpLeKAf6e01o/KrOew01eA
+# JevRReovJ/V739DHtqaLTsh4GZcOO+/hOIzlVWy+Fkk+LgTstMeY1gaJUz/EJoap
+# kfbl+MjZXb37HAfUg6HLd3XpqO9wHxqEo6uwj1caVvQwNk5/5MlZD2W7OPawsMoD
+# WDeW8pIsWaF/rTFZMT+nh83HxgPD+Oejt4EXa14jVzpiYZsOyOxBs3FpfV33LTdZ
+# s3G7i+hN8mj5jXwy/D9FNAFZRJtyKkmGDG5jw17aufKWLI6pTVcikSCvdv2W8CH1
+# iKKd+Tf0BKYWUHKunBuwDyO4gTFkd9rPt0E+Aq7IK6yxHqNYs1jIRRgOVjXTOzyq
+# 0dh8M0hy1090PtBYy/AzsNvkDvMdrLnOMOjhvIfHDEsca263x6b9p2UWdIpGKYTI
+# QdWbj1fyaz0Q1Ks/SQurQCuaEBeyUrihkq+3+Ek0hK5HzxO6jVEAQzoH/daNrXI/
+# J6GCAyAwggMcBgkqhkiG9w0BCQYxggMNMIIDCQIBATB3MGMxCzAJBgNVBAYTAlVT
 # MRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5jLjE7MDkGA1UEAxMyRGlnaUNlcnQgVHJ1
 # c3RlZCBHNCBSU0E0MDk2IFNIQTI1NiBUaW1lU3RhbXBpbmcgQ0ECEAxNaXJLlPo8
 # Kko9KQeAPVowDQYJYIZIAWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcN
-# AQcBMBwGCSqGSIb3DQEJBTEPFw0yMzA0MTcxNzE2MjdaMC8GCSqGSIb3DQEJBDEi
-# BCBFUom5erTLkZDgSwe/Mk6xSY8ApeNuvVrqsKheSjJqozANBgkqhkiG9w0BAQEF
-# AASCAgCu5bWspS5TwXm9hNOIbDAbaCaLnF21QwNVCc1Dm7xra7l1wch+PTEb0LfO
-# TEvNZLaDahWfI+D6bhgPakokeMq3ZCC0U/kjmqBAfTD5wGFUuuKwvvexQP25exjm
-# QAg52JuegQoD6FpobcGauHnP40c2RVT5q5wKoN38GVppVC0nzTZiYOzNXLYnrug7
-# AA89UrYWiUMmrSwblDKbhGrcZZeeMOwPMKNBJ9zSCewfib1gJGHg68l3Z9+0ZJA1
-# CoGwa4MC5JDqXj53GJ+LejviGYaaKuP8yWfAZyk2aqtwVZpgHX0SdIdL3EfGFuYP
-# aMsAoNQGetrInwUQq42R7bQ1PvEdMtHr4eq8aLsGsENv2+cV0PLRvUUc587AoI1d
-# 5skDQHzkNVld5YM/SAvaZC+Dc8i9xOFuBXsjiMX6iPNycpd3dU/A4t1c8sYNr1XP
-# yBdgZdQpiyFP4voDLzghOpcTsm/zhf09xXWwAylZ44ob0fcc9++9IYrV1dhbK6rn
-# NgP6rhR7BJcaQcDHGkCe74mK/8jFLn8tQeWG97GDmtLyUM8Aw40X0wBFc9gc/M76
-# oxJMh29CkDl9UIDsjnbFV8KDdxI5HM9MNMZQS6ClC4efRQz5vIraB5e8TnBeDYhH
-# 05C5A27bQ49QaobX3zZVu2bIWAD0Qy908LXUzrA0tfvcKPn19g==
+# AQcBMBwGCSqGSIb3DQEJBTEPFw0yMzA3MTQyMDI2NDFaMC8GCSqGSIb3DQEJBDEi
+# BCCbZmqxmP9VyZj0d+JyG3XiYLqbAd1qHQRCzj7PS+jUbjANBgkqhkiG9w0BAQEF
+# AASCAgBj3x/u5x/8GICzjI/MHwoWp4dzm6QqBv8v9idNyWR9xoeRuEKTX19zM5/t
+# /zYTULZsBN/gfw3IN2+y4J8qe5tSILxYs5HhBlMb7DWhWMXBXFgLSuHTvshJBBOQ
+# UrXQqqw8FtqGpyRLj0nR7hQ1Qm0EEznIO5pGlpINXhQGiuYzr81Jsf11mAlDG8wH
+# GXAEMwGNqfNhGPXgXwQC2bROLaS6K6ndNXBW8WiSaryacZPcHzmVIk6te7jWP7eh
+# ABFp9Opsz0WgcMJXSNp1fviHnKoDi0wHzDClHw55dv8HZ1YbK1ABsJ1BOSXo4d7d
+# tu1gH++KJ/2DwC/5hL/XSb8YkzbNFqUZ0/X6eBD7MBcVqFRefOwVXnQQooNJZalY
+# AcLkwXo1hUXk8404dyWeTOVw3n0PQf34AFPv0OVICi2ViN65f79KJtFdBsmqmwvR
+# 70lEiRwJqQiBqYUMRdQw60+tFXjYV8nX2o7ZcPXclHK35qxEL7ztiMxLcChOj/3R
+# c5vs5VxLX+HrnLLEnFKMeXl+h4jviF31IDtyY30om1buzF7CWcURNS1a//NhPwNb
+# YJF8L9nRRsWndSqVz+42WS8YxZH9GeYSYlm+YgtT47QTmFPra6eMCmswsPuHDNXm
+# acEpAdqvI1CWQr3h2HVE3IKgt+dPJ927PbVGLqQX1S2QccdvyQ==
 # SIG # End signature block
