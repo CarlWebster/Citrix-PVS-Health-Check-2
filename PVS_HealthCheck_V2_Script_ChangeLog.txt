@@ -7,6 +7,11 @@
 #V2.00 is based on 1.24
 #
 
+#Version 2.04 14-Jul-2023
+#	Added the following regkeys from https://support.citrix.com/article/CTX133877/timeout-error-4002-in-provisioning-server-console-after-clicking-show-connected-devices 
+#		HKLM:\software\citrix\provisioningServices\Manager\RelayedRequestReplyTimeoutMilliseconds    
+#		HKLM:\software\citrix\provisioningServices\Manager\RelayedRequestTryTimes
+
 #Version 2.03 17-Apr-2023
 #	Added new Farm properties introduced in 2303, SetupType and CloudSetupActive
 #		If(SetupType -eq 1 -and CloudSetupActive -eq $True )
