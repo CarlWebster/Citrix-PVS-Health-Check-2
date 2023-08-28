@@ -7,6 +7,12 @@
 #V2.00 is based on 1.24
 #
 
+#Version 2.10 28-Aug-2023
+#	Updated the script for https://www.citrix.com/blogs/2023/08/22/the-new-citrix-provisioning-guidelines/
+#	Added Function OutputAppendixHeading to output an overview of the new recommendations
+#	From Function OutputAppendixE, removed the link to the old CTX article
+#	In Function ProcessvDisksinFarm, add references to the new article
+
 #Version 2.04 14-Jul-2023
 #	Added the following regkeys from https://support.citrix.com/article/CTX133877/timeout-error-4002-in-provisioning-server-console-after-clicking-show-connected-devices 
 #		HKLM:\software\citrix\provisioningServices\Manager\RelayedRequestReplyTimeoutMilliseconds    

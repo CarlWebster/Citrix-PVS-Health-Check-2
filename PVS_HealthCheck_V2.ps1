@@ -468,9 +468,9 @@
 	CSV files.
 .NOTES
 	NAME: PVS_HealthCheck_V2.ps1
-	VERSION: 2.04
+	VERSION: 2.10
 	AUTHOR: Carl Webster (with much help from BG a, now former, Citrix dev)
-	LASTEDIT: July 14, 2023
+	LASTEDIT: August 28, 2023
 #>
 
 
@@ -584,6 +584,12 @@ Param(
 #V2 script created February 23, 2022
 #released to the community on 
 #V2.00 is based on 1.24
+#
+#Version 2.10 28-Aug-2024
+#	Updated the script for https://www.citrix.com/blogs/2023/08/22/the-new-citrix-provisioning-guidelines/
+#	Added Function OutputAppendixHeading to output an overview of the new recommendations
+#	From Function OutputAppendixE, removed the link to the old CTX article
+#	In Function ProcessvDisksinFarm, add references to the new article
 #
 #Version 2.04 14-Jul-2023
 #	Added the following regkeys from https://support.citrix.com/article/CTX133877/timeout-error-4002-in-provisioning-server-console-after-clicking-show-connected-devices 
@@ -778,9 +784,9 @@ $ErrorActionPreference    = 'SilentlyContinue'
 $global:emailCredentials  = $Null
 
 #Report footer stuff
-$script:MyVersion         = 'V2.03'
+$script:MyVersion         = 'V2.10'
 $Script:ScriptName        = "PVS_HealthCheck_V2.ps1"
-$tmpdate                  = [datetime] "04/17/2023"
+$tmpdate                  = [datetime] "08/28/2023"
 $Script:ReleaseDate       = $tmpdate.ToUniversalTime().ToShortDateString()
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
@@ -9815,6 +9821,15 @@ Function ProcessvDisksinFarm
 		}
 
 		# http://blogs.citrix.com/2013/07/03/pvs-internals-2-how-to-properly-size-your-memory/
+		# The formula from https://www.citrix.com/blogs/2023/08/22/the-new-citrix-provisioning-guidelines/ didn't change
+		# we can't tell if a vDisk is multi-session or single-session in this script
+		<#
+			Plan Conservatively for PVS Server Memory. 
+			For new PVS deployments, calculate the PVS server memory using this rule of thumb 
+			(which is in my opinion, old but gold): 
+			2GiB + (#Multi-Session-OS_vDisk * 4GiB) + (#Single-Session-OS_vDisk * 2GiB) + 15% (Buffer). 		
+		#>
+		
 		[decimal]$XDRecRAM = ((2 + ($NumberofvDisks * 2)) * 1.15)
 		$XDRecRAM = "{0:N0}" -f $XDRecRAM
 
@@ -10311,6 +10326,68 @@ Function ProcessStores
 #endregion
 
 #region appendix A
+Funtion OutputAppendixHeading
+{
+	If($MSWord -or $PDF)
+	{
+		$selection.InsertNewPage()
+		WriteWordLine 0 0 ""
+		WriteWordLine 0 0 "From Legacy to Leading Edge: The New Citrix Provisioning Guidelines"
+		WriteWordLine 0 0 "https://www.citrix.com/blogs/2023/08/22/the-new-citrix-provisioning-guidelines/"
+		WriteWordLine 0 0 ""
+		WriteWordLine 0 0 "Recommendations that are no longer necessary"
+		WriteWordLine 0 0 "1. Avoid Modifying the Threads Per Port and Streaming Ports."
+		WriteWordLine 0 0 "2. Avoid Modifying Maximum Boot Time and Maximum Devices Booting. "
+		WriteWordLine 0 0 "3. Do Not Disable Task/TCP/Large Send Offloading."
+		WriteWordLine 0 0 ""
+		WriteWordLine 0 0 "Recommendations That Require Planning"
+		WriteWordLine 0 0 "1. Plan for UEFI instead of BIOS."
+		WriteWordLine 0 0 "2. Plan Conservatively for PVS Server Memory."
+		WriteWordLine 0 0 ""
+		WriteWordLine 0 0 "Miscellaneous Recommendations"
+		WriteWordLine 0 0 "1. Avoid Boot Time Access (and Near-Boot Time Access)."
+		WriteWordLine 0 0 "2. Jumbo Frames are Probably Not Worth Implementing."
+	}
+	If($Text)
+	{
+		Line 0 ""
+		Line 0 "From Legacy to Leading Edge: The New Citrix Provisioning Guidelines"
+		Line 0 "https://www.citrix.com/blogs/2023/08/22/the-new-citrix-provisioning-guidelines/"
+		Line 0 ""
+		Line 0 "Recommendations that are no longer necessary"
+		Line 0 "1. Avoid Modifying the Threads Per Port and Streaming Ports."
+		Line 0 "2. Avoid Modifying Maximum Boot Time and Maximum Devices Booting. "
+		Line 0 "3. Do Not Disable Task/TCP/Large Send Offloading."
+		Line 0 ""
+		Line 0 "Recommendations That Require Planning"
+		Line 0 "1. Plan for UEFI instead of BIOS."
+		Line 0 "2. Plan Conservatively for PVS Server Memory."
+		Line 0 ""
+		Line 0 "Miscellaneous Recommendations"
+		Line 0 "1. Avoid Boot Time Access (and Near-Boot Time Access)."
+		Line 0 "2. Jumbo Frames are Probably Not Worth Implementing."
+	}
+	If($HTML)
+	{
+		WriteHTMLLine 0 0 ""
+		WriteHTMLLine 0 0 "From Legacy to Leading Edge: The New Citrix Provisioning Guidelines"
+		WriteHTMLLine 0 0 "https://www.citrix.com/blogs/2023/08/22/the-new-citrix-provisioning-guidelines/"
+		WriteHTMLLine 0 0 ""
+		WriteHTMLLine 0 0 "Recommendations that are no longer necessary"
+		WriteHTMLLine 0 0 "1. Avoid Modifying the Threads Per Port and Streaming Ports."
+		WriteHTMLLine 0 0 "2. Avoid Modifying Maximum Boot Time and Maximum Devices Booting. "
+		WriteHTMLLine 0 0 "3. Do Not Disable Task/TCP/Large Send Offloading."
+		WriteHTMLLine 0 0 ""
+		WriteHTMLLine 0 0 "Recommendations That Require Planning"
+		WriteHTMLLine 0 0 "1. Plan for UEFI instead of BIOS."
+		WriteHTMLLine 0 0 "2. Plan Conservatively for PVS Server Memory."
+		WriteHTMLLine 0 0 ""
+		WriteHTMLLine 0 0 "Miscellaneous Recommendations"
+		WriteHTMLLine 0 0 "1. Avoid Boot Time Access (and Near-Boot Time Access)."
+		WriteHTMLLine 0 0 "2. Jumbo Frames are Probably Not Worth Implementing."
+	}
+}
+
 Function OutputAppendixA
 {
 	Write-Verbose "$(Get-Date -Format G): Create Appendix A Advanced Server Items (Server/Network)"
@@ -10848,19 +10925,10 @@ Function OutputAppendixE
 		$selection.InsertNewPage()
 		WriteWordLine 1 0 "Appendix E - DisableTaskOffload Settings"
 		[System.Collections.Hashtable[]] $ItemsWordTable = @();
-		WriteWordLine 0 0 ""
-		WriteWordLine 0 0 "Best Practices for Configuring Provisioning Services Server on a Network"
-		WriteWordLine 0 0 "http://support.citrix.com/article/CTX117374"
-		WriteWordLine 0 0 "This setting is not needed if you are running PVS 6.0 or later" "" $Null 0 $False $True	
-		WriteWordLine 0 0 ""
 	}
 	If($Text)
 	{
 		Line 0 "Appendix E - DisableTaskOffload Settings"
-		Line 0 ""
-		Line 0 "Best Practices for Configuring Provisioning Services Server on a Network"
-		Line 0 "http://support.citrix.com/article/CTX117374"
-		Line 0 "This setting is not needed if you are running PVS 6.0 or later"
 		Line 0 ""
 		Line 1 "Server Name      DisableTaskOffload Setting" 
 		Line 1 "==========================================="
@@ -10869,11 +10937,6 @@ Function OutputAppendixE
 	{
 		WriteHTMLLine 1 0 "Appendix E - DisableTaskOffload Settings"
 		$rowdata = @()
-		WriteHTMLLine 0 0 ""
-		WriteHTMLLine 0 0 "Best Practices for Configuring Provisioning Services Server on a Network"
-		WriteHTMLLine 0 0 "http://support.citrix.com/article/CTX117374"
-		WriteHTMLLine 0 0 "This setting is not needed if you are running PVS 6.0 or later" "" $Null 2 $htmlbold
-		WriteHTMLLine 0 0 ""
 	}
 
 	If($Script:TaskOffloadItems)
@@ -13628,6 +13691,8 @@ ProcessPVSSite
 ProcessvDisksinFarm
 
 ProcessStores
+
+OutputAppendixHeading
 
 OutputAppendixA	#Appendix A - Advanced Server Items (Server/Network)
 
